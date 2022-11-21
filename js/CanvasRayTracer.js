@@ -1,5 +1,5 @@
 let canvas = document.getElementById("myCanvas");
-let context = canvas.getContext("2d");
+let context = canvas.getContext("2d", {willReadFrequently: true});
 
 let debugInfo = document.getElementById("debugInfo");
 
@@ -22,8 +22,10 @@ let thetaFOV = FOV * 0.5 * (Math.PI / 180);
 let vLen = 1; // height scale
 let uLen = 1; // width scale
 
-let colorHistoryArrayLength = 0;
-let pixelsColorHistory = [];
+let pixelsColorHistory = null;
+let pixelsColorHistoryIndex = 0;
+let imageData = null;
+let imageDataIndex = 0;
 
 
 
@@ -37,13 +39,10 @@ function handleWindowResize()
 	vLen = Math.tan(thetaFOV); // height scale
 	uLen = vLen * aspectRatio; // width scale
 
-	pixelsColorHistory = [];
-	colorHistoryArrayLength = canvas.width * canvas.height * 3;
+	pixelsColorHistory = null;
+	pixelsColorHistory = new Float32Array(canvas.width * canvas.height * 3);
 
-	for (let index = 0; index < colorHistoryArrayLength; index++)
-	{
-		pixelsColorHistory[index] = 0;
-	}
+	imageData = context.getImageData(0, 0, canvas.width, canvas.height);
 
 	if (sampleCount == MAX_SAMPLE_COUNT)
 	{
@@ -338,7 +337,7 @@ function rayTrace()
 			{
 				// ambient contribution
 				ambientColor.copy(rayColorMask);
-				ambientColor.multiplyScalar(0.1);
+				ambientColor.multiplyScalar(0.2);
 				// diffuse contribution
 				diffuseColor.copy(rayColorMask);
 				diffuseColor.multiplyColor(sunColor);
@@ -385,7 +384,7 @@ function rayTrace()
 		{
 			// ambient contribution
 			ambientColor.copy(rayColorMask);
-			ambientColor.multiplyScalar(0.1);
+			ambientColor.multiplyScalar(0.2);
 
 			rayTracedColor.add(ambientColor);
 
@@ -519,6 +518,8 @@ function tentFilter(x)
 
 function draw()
 {
+	///imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+
 	sampleCount++;
 
 	setUpCameraFrame();
@@ -562,14 +563,14 @@ function draw()
 
 			pixelColor.copy(rayTrace());
 			pixelIndex = (row * canvas.width) + column;
-			pixelIndex *= 3;
-			pixelsColorHistory[pixelIndex + 0] += pixelColor.x;
-			pixelsColorHistory[pixelIndex + 1] += pixelColor.y;
-			pixelsColorHistory[pixelIndex + 2] += pixelColor.z;
+			pixelsColorHistoryIndex = pixelIndex * 3;
+			pixelsColorHistory[pixelsColorHistoryIndex + 0] += pixelColor.x;
+			pixelsColorHistory[pixelsColorHistoryIndex + 1] += pixelColor.y;
+			pixelsColorHistory[pixelsColorHistoryIndex + 2] += pixelColor.z;
 
-			pixelColor.set(pixelsColorHistory[pixelIndex + 0],
-				pixelsColorHistory[pixelIndex + 1],
-				pixelsColorHistory[pixelIndex + 2]);
+			pixelColor.set(pixelsColorHistory[pixelsColorHistoryIndex + 0],
+				pixelsColorHistory[pixelsColorHistoryIndex + 1],
+				pixelsColorHistory[pixelsColorHistoryIndex + 2]);
 
 			pixelColor.multiplyScalar(1 / sampleCount);
 
@@ -585,8 +586,17 @@ function draw()
 			pixelColor.multiplyScalar(255);
 			pixelColor.set(Math.floor(pixelColor.x), Math.floor(pixelColor.y), Math.floor(pixelColor.z));
 
-			context.fillStyle = "rgb(" + pixelColor.x + "," + pixelColor.y + "," + pixelColor.z + ")";
-			context.fillRect(column, row, 1, 1);
+			// more simple method of drawing pixel-sized rectangles, but slower than the method of writing directly to imageData.data[] below
+			//context.fillStyle = "rgb(" + pixelColor.x + "," + pixelColor.y + "," + pixelColor.z + ")";
+			//context.fillRect(column, row, 1, 1);
+
+			// slightly more complex method of directly writing to the Canvas imageData.data[] array, but 2x faster than above simpler method!
+			imageDataIndex = pixelIndex * 4;
+			imageData.data[imageDataIndex + 0] = pixelColor.x; // red
+			imageData.data[imageDataIndex + 1] = pixelColor.y; // green
+			imageData.data[imageDataIndex + 2] = pixelColor.z; // blue
+			imageData.data[imageDataIndex + 3] = 255;          // alpha
+
 			/* if (row == 0)
 			{
 				//console.log(column + ", " + row);
@@ -599,10 +609,15 @@ function draw()
 		//console.log("g: " + g);
 	}
 
+	// draw the ray-traced image to the Canvas
+	context.putImageData(imageData, 0, 0);
+
 } // end function draw()
+
 
 // jumpstart getting canvas dimensions with a call to handleWindowResize()
 handleWindowResize();
+
 
 function animate() 
 {
