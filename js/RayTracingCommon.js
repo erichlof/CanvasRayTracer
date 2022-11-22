@@ -70,7 +70,7 @@ Vec3.prototype.crossVectors = function(vecA, vecB)
 
 Vec3.prototype.magnitude = function ()
 {
-	return Math.hypot(this.x, this.y, this.z);
+	return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
 };
 
 let magnitude = 0;
