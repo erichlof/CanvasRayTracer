@@ -130,7 +130,7 @@ let directionToSun = new Vec3(-1, 0.7, 0.4);
 directionToSun.normalize();
 let diffuseFalloff = 0;
 let cameraPosition = new Vec3(0, 4, 0);
-let cameraTarget = new Vec3(0, 4, -1);
+let cameraTarget = new Vec3();
 let canvasOffsetZFromCamera = -1;
 let pixelPosition = new Vec3();
 let canvasPositionOffset = new Vec3();
@@ -138,6 +138,7 @@ let rayOrigin = new Vec3();
 let rayDirection = new Vec3();
 let rightVector = new Vec3();
 let upVector = new Vec3();
+let forwardVector = new Vec3();
 let pixelColor = new Vec3();
 let colorPlusOne = new Vec3();
 let inverseColor = new Vec3();
@@ -164,9 +165,13 @@ let diffuseSpherePosition = new Vec3(-8, diffuseSphereRadius, -10);
 let metalSphereRadius = 3;
 let metalSpherePosition = new Vec3(-8, metalSphereRadius, -18);
 
-let coatSphereRadius = 2.5;
-let coatSpherePosition = new Vec3(8, coatSphereRadius, -15);
+let coatSphereRadius = 2;
+let coatSpherePosition = new Vec3(4, coatSphereRadius, -10);
 
+let glassSphereRadius = 2.0;
+let glassSpherePosition = new Vec3(10, glassSphereRadius, -15);
+
+cameraTarget.set(checkerSpherePosition.x, checkerSpherePosition.y - 2, checkerSpherePosition.z);
 
 let testT = Infinity;
 let hitPoint = new Vec3();
@@ -298,6 +303,20 @@ function intersectScene()
 		HitRecord.normal.subtract(coatSpherePosition);
 	}
 
+	testT = intersectSphere(glassSphereRadius, glassSpherePosition, rayOrigin, rayDirection);
+	if (testT < HitRecord.nearestT)
+	{
+		HitRecord.nearestT = testT;
+		HitRecord.type = TRANSPARENT;
+		HitRecord.color.set(1.0, 1.0, 1.0);
+		tempVec.copy(rayDirection);
+		tempVec.multiplyScalar(HitRecord.nearestT);
+		hitPoint.copy(rayOrigin);
+		hitPoint.add(tempVec);
+		HitRecord.normal.copy(hitPoint);
+		HitRecord.normal.subtract(glassSpherePosition);
+	}
+
 	return HitRecord.nearestT;
 } // end function intersectScene()
 
@@ -312,13 +331,15 @@ let isReflectionTime = false;
 let fresnelReflectance = 0;
 let fresnelTransparency = 0;
 let whiteColor = new Vec3(1, 1, 1);
+let eta = 1;
+let N = new Vec3();
 
 function rayTrace()
 {
 	rayTracedColor.set(0, 0, 0);
 	ambientColor.set(0, 0, 0);
 	diffuseColor.set(0, 0, 0);
-	specularColor.set(1, 1, 1);
+	specularColor.set(0, 0, 0);
 	rayColorMask.set(1, 1, 1);
 	specularFalloff = 0;
 	diffuseFalloff = 0;
@@ -335,33 +356,18 @@ function rayTrace()
 		{
 			if (isShadowRay)
 			{
-				// ambient contribution
-				ambientColor.copy(rayColorMask);
-				ambientColor.multiplyScalar(0.2);
-				// diffuse contribution
-				diffuseColor.copy(rayColorMask);
-				diffuseColor.multiplyColor(sunColor);
-				diffuseColor.multiplyScalar(diffuseFalloff);
-				// specular contribution
-				specularColor.set(1, 1, 1);
-				specularColor.multiplyColor(sunColor);
-				specularColor.multiplyScalar(specularFalloff);
-
 				rayTracedColor.add(ambientColor);
 				rayTracedColor.add(diffuseColor);
 				rayTracedColor.add(specularColor);
 			}
-			else // either camera ray or reflection ray hit the background/sky
+			else // either camera ray or reflection/refraction ray hit the background/sky
 			{
 				tempColor.copy(rayColorMask);
 				tempColor.multiplyColor(skyColor);
 				rayTracedColor.add(tempColor);
 
 				// specular contribution
-				tempColor.copy(rayColorMask);
-				tempColor.multiplyColor(sunColor);
-				tempColor.multiplyScalar(specularFalloff);
-				rayTracedColor.add(tempColor);
+				rayTracedColor.add(specularColor);
 			}
 
 			if (willNeedReflectionRay)
@@ -383,9 +389,6 @@ function rayTrace()
 		if (isShadowRay)
 		{
 			// ambient contribution
-			ambientColor.copy(rayColorMask);
-			ambientColor.multiplyScalar(0.2);
-
 			rayTracedColor.add(ambientColor);
 
 			if (willNeedReflectionRay)
@@ -404,6 +407,11 @@ function rayTrace()
 
 		// useful data
 		HitRecord.normal.normalize();
+		N.copy(HitRecord.normal);
+		if (rayDirection.dot(N) > 0)
+		{
+			N.multiplyScalar(-1);
+		}
 		HitRecord.intersectionPoint.copy(rayOrigin);
 		tempVec.copy(rayDirection);
 		tempVec.multiplyScalar(HitRecord.nearestT);
@@ -412,19 +420,27 @@ function rayTrace()
 
 		if (HitRecord.type == DIFFUSE)
 		{
-			//fresnelReflectance = calcFresnelReflectance(0.02, rayDirection, HitRecord.normal);
-			fresnelReflectance = rFresnel(rayDirection, HitRecord.normal, 1.0, 1.1);
+			fresnelReflectance = calcFresnelEffect(0.04, rayDirection, HitRecord.normal);
 			fresnelTransparency = 1 - fresnelReflectance;
 
 			whiteColor.set(1, 1, 1);
-			whiteColor.multiplyScalar(fresnelReflectance);
-			HitRecord.color.multiplyScalar(fresnelTransparency);
-			HitRecord.color.mix(HitRecord.color, whiteColor, fresnelReflectance);
+			HitRecord.color.mix(HitRecord.color, whiteColor, fresnelReflectance * fresnelReflectance);
 			rayColorMask.multiplyColor(HitRecord.color);
-
 
 			diffuseFalloff = HitRecord.normal.dot(directionToSun);
 			specularFalloff = 0;
+
+			// ambient contribution
+			ambientColor.copy(rayColorMask);
+			ambientColor.multiplyScalar(0.2);
+			// diffuse contribution
+			diffuseColor.copy(rayColorMask);
+			diffuseColor.multiplyColor(sunColor);
+			diffuseColor.multiplyScalar(diffuseFalloff);
+			// specular contribution
+			specularColor.set(1, 1, 1);
+			specularColor.multiplyColor(sunColor);
+			specularColor.multiplyScalar(specularFalloff);
 
 			rayDirection.copy(directionToSun);
 			rayOrigin.copy(HitRecord.intersectionPoint);
@@ -436,19 +452,20 @@ function rayTrace()
 		}
 		else if (HitRecord.type == METAL)
 		{
-			//fresnelReflectance = calcFresnelReflectance(0.04, rayDirection, HitRecord.normal);
-			fresnelReflectance = rFresnel(rayDirection, HitRecord.normal, 1.0, 2.0);
+			fresnelReflectance = calcFresnelEffect(0.1, rayDirection, HitRecord.normal);
 			fresnelTransparency = 1 - fresnelReflectance;
 
 			whiteColor.set(1, 1, 1);
-			//whiteColor.multiplyScalar(fresnelReflectance);
-			// HitRecord.color.multiplyScalar(fresnelTransparency);
-			HitRecord.color.mix(HitRecord.color, whiteColor, fresnelReflectance);
+			HitRecord.color.mix(HitRecord.color, whiteColor, fresnelReflectance * fresnelReflectance);
 			rayColorMask.multiplyColor(HitRecord.color);
 
-			diffuseFalloff = 0;
 			// evaluate Blinn-Phong reflection model at this surface point
 			specularFalloff = calcSpecularReflectance(rayDirection, directionToSun, HitRecord.normal, 1000);
+
+			// specular contribution
+			specularColor.copy(rayColorMask);
+			specularColor.multiplyColor(sunColor);
+			specularColor.multiplyScalar(specularFalloff);
 
 			rayDirection.reflect(HitRecord.normal);
 			rayOrigin.copy(HitRecord.intersectionPoint);
@@ -462,8 +479,7 @@ function rayTrace()
 		}
 		else if (HitRecord.type == CLEARCOAT_DIFFUSE)
 		{
-			//fresnelReflectance = calcFresnelReflectance(0.04, rayDirection, HitRecord.normal);
-			fresnelReflectance = rFresnel(rayDirection, HitRecord.normal, 1.0, 1.5);
+			fresnelReflectance = calcFresnelReflectance(rayDirection, HitRecord.normal, 1.0, 1.5);
 			fresnelTransparency = 1 - fresnelReflectance;
 
 			if (bounces == 0 || previousIntersectionWasMetal)
@@ -472,14 +488,26 @@ function rayTrace()
 				reflectionRayColorMask.multiplyScalar(fresnelReflectance);
 				reflectionRayDirection.copy(rayDirection);
 				reflectionRayDirection.reflect(HitRecord.normal);
+				// evaluate Blinn-Phong reflection model at this surface point
+				specularFalloff = calcSpecularReflectance(rayDirection, directionToSun, N, 1000);
+				// specular contribution
+				specularColor.set(1, 1, 1);
+				specularColor.multiplyColor(sunColor);
+				specularColor.multiplyScalar(specularFalloff);
 			}
 
 			HitRecord.color.multiplyScalar(fresnelTransparency);
 			rayColorMask.multiplyColor(HitRecord.color);
 
 			diffuseFalloff = HitRecord.normal.dot(directionToSun);
-			// evaluate Blinn-Phong reflection model at this surface point
-			specularFalloff = calcSpecularReflectance(rayDirection, directionToSun, HitRecord.normal, 1000);
+			
+			// ambient contribution
+			ambientColor.copy(rayColorMask);
+			ambientColor.multiplyScalar(0.2);
+			// diffuse contribution
+			diffuseColor.copy(rayColorMask);
+			diffuseColor.multiplyColor(sunColor);
+			diffuseColor.multiplyScalar(diffuseFalloff);
 
 			rayDirection.copy(directionToSun);
 			rayOrigin.copy(HitRecord.intersectionPoint);
@@ -495,6 +523,55 @@ function rayTrace()
 
 			isShadowRay = true;
 
+			continue;
+		}
+		else if (HitRecord.type == TRANSPARENT)
+		{
+			fresnelReflectance = calcFresnelReflectance(rayDirection, HitRecord.normal, 1.0, 1.5);
+			fresnelTransparency = 1 - fresnelReflectance;
+
+			if (bounces == 0 || previousIntersectionWasMetal)
+			{
+				reflectionRayColorMask.copy(rayColorMask);
+				reflectionRayColorMask.multiplyScalar(fresnelReflectance);
+				reflectionRayDirection.copy(rayDirection);
+				reflectionRayDirection.reflect(HitRecord.normal);
+				// evaluate Blinn-Phong reflection model at this surface point
+				specularFalloff = calcSpecularReflectance(rayDirection, directionToSun, N, 1000);
+				// specular contribution
+				specularColor.set(1, 1, 1);
+				specularColor.multiplyColor(sunColor);
+				specularColor.multiplyScalar(specularFalloff);
+			}
+
+			
+			HitRecord.color.multiplyScalar(fresnelTransparency);
+			
+			rayColorMask.multiplyColor(HitRecord.color);
+
+			if (rayDirection.dot(HitRecord.normal) < 0)
+			{
+				eta = 1.0 / 1.5;
+			}
+			else
+			{
+				eta = 1.5 / 1.0;
+			}
+			rayDirection.refract(N, eta);
+			rayOrigin.copy(HitRecord.intersectionPoint);
+			N.multiplyScalar(0.0001);
+			rayOrigin.add(N); // 'add' here, for reflectionRayOrigin below
+
+			if (bounces == 0 || previousIntersectionWasMetal)
+			{
+				reflectionRayOrigin.copy(rayOrigin);
+				willNeedReflectionRay = true;
+				previousIntersectionWasMetal = false;
+			}
+
+			rayOrigin.copy(HitRecord.intersectionPoint);
+			rayOrigin.subtract(N); // now 'subtract', to go through material
+			isShadowRay = false;
 			continue;
 		}
 
@@ -518,7 +595,6 @@ function tentFilter(x)
 
 function draw()
 {
-	///imageData = context.getImageData(0, 0, canvas.width, canvas.height);
 
 	sampleCount++;
 
@@ -550,12 +626,14 @@ function draw()
 
 			rayOrigin.copy(cameraPosition);
 
+			forwardVector.copy(cameraForward);
+			forwardVector.multiplyScalar(-1);
 			rightVector.copy(cameraRight);
 			rightVector.multiplyScalar(canvasX * uLen);
 			upVector.copy(cameraUp);
 			upVector.multiplyScalar(canvasY * vLen);
 
-			rayDirection.copy(cameraForward);
+			rayDirection.copy(forwardVector);
 			rayDirection.add(rightVector);
 			rayDirection.add(upVector);
 			rayDirection.normalize();
