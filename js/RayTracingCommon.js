@@ -61,7 +61,7 @@ Vec3.prototype.dot = function (otherVec)
 	return (this.x * otherVec.x) + (this.y * otherVec.y) + (this.z * otherVec.z);
 };
 
-Vec3.prototype.crossVectors = function(vecA, vecB)
+Vec3.prototype.crossVectors = function (vecA, vecB)
 {
 	this.x = (vecA.y * vecB.z) - (vecA.z * vecB.y);
 	this.y = (vecA.z * vecB.x) - (vecA.x * vecB.z);
@@ -86,13 +86,44 @@ Vec3.prototype.normalize = function ()
 	this.z *= oneOverMagnitude;
 };
 
+let IdotN = 0;
+
 Vec3.prototype.reflect = function (surfaceNormal)
 {
-	// R = I + (N * 2 * -IdotN)
+	/* GLSL reflect() implementation
+	R = I - (N * 2 * IdotN); 
+	*/
+
+	// 'tempVec' represents N in the above equation
+	// 'this' represents I in the above equation
 	tempVec.copy(surfaceNormal);
-	tempVec.multiplyScalar(2 * -this.dot(surfaceNormal));
-	this.add(tempVec);
+	IdotN = this.dot(surfaceNormal);
+	tempVec.multiplyScalar(2 * IdotN);
+	this.subtract(tempVec);
 };
+
+
+
+let k = 0.0;
+
+Vec3.prototype.refract = function(surfaceNormal, eta)
+{
+	/* GLSL refract() implementation
+	k = eta * eta * (1.0 - IdotN * IdotN);  
+	T = eta * I - (eta * IdotN + sqrt(1.0 - k)) * N; 
+	*/
+
+	// T = eta * I - (N * eta * IdotN + sqrt(1 - (eta * eta * (1 - IdotN * IdotN))))
+	// 'tempVec' represents N in the above equation
+	// 'this' represents I in the above equation
+	tempVec.copy(surfaceNormal);
+	IdotN = this.dot(surfaceNormal);
+	k = (eta * eta) * (1 - IdotN * IdotN);
+	tempVec.multiplyScalar(eta * IdotN + Math.sqrt(1 - k));
+	this.multiplyScalar(eta);
+	this.subtract(tempVec);
+};
+
 
 let worldUp = new Vec3(0, 1, 0);
 let cameraRight = new Vec3();
@@ -101,14 +132,14 @@ let cameraForward = new Vec3();
 
 function setUpCameraFrame()
 {
-	cameraForward.copy(cameraTarget);
-	cameraForward.subtract(cameraPosition);
+	cameraForward.copy(cameraPosition);
+	cameraForward.subtract(cameraTarget);
 	cameraForward.normalize();
 
-	cameraRight.crossVectors(cameraForward, worldUp);
+	cameraRight.crossVectors(worldUp, cameraForward);
 	cameraRight.normalize();
 
-	cameraUp.crossVectors(cameraRight, cameraForward);
+	cameraUp.crossVectors(cameraForward, cameraRight);
 	cameraUp.normalize();
 }
 
@@ -132,46 +163,48 @@ function calcSpecularReflectance(rayDirection, sunDirection, normal, shininessEx
 
 let cosTheta = 0;
 
-function calcFresnelReflectance(r0, rayDir, normal)
+function calcFresnelEffect(r0, rayDir, normal)
 {
-	//r0 *= r0;
+	r0 *= r0;
 	halfDir.copy(rayDir);
 	halfDir.x *= -1;
 	halfDir.y *= -1;
 	halfDir.z *= -1;
 
-	cosTheta = Math.max(0, halfDir.dot(normal));
-	return (r0 + ((1 - r0) * Math.pow(1 - cosTheta, 5)));
+	cosTheta = 1 - Math.max(0, halfDir.dot(normal));
+	return (r0 + ((1 - r0) * cosTheta * cosTheta * cosTheta * cosTheta * cosTheta));
 }
 
 // reflectance using Fresnel equation.
-function rFresnel(incident, normal, n1, n2)
+let temp = 0.0;
+let cosi = 0.0;
+let sint2 = 0.0;
+let cost = 0.0;
+let Rs = 0.0;
+let Rp = 0.0;
+function calcFresnelReflectance(rayDirection, surfaceNormal, etai, etat)
 {
-	let n = n1 / n2;
-	let cosI = normal.dot(incident) * -1;
-	let sinT2 = n * n * (1 - cosI * cosI);
-	if (sinT2 > 1) return 1; // TIR
-	let cosT = Math.sqrt(1 - sinT2);
-	let rOrth = (n1 * cosI - n2 * cosT) / (n1 * cosI + n2 * cosT);
-	let rPar = (n2 * cosI - n1 * cosT) / (n2 * cosI + n1 * cosT);
-	let result = (rOrth * rOrth + rPar * rPar) * 0.5;
-	result = Math.max(0, result);
-	result = Math.min(result, 1);
-	return result;
+	temp = etai;
+	cosi = rayDirection.dot(surfaceNormal);
+	if (cosi > 0.0)
+	{
+		etai = etat;
+		etat = temp;
+	}
+
+	ratioIoR = etai / etat;
+	sint2 = ratioIoR * ratioIoR * (1 - (cosi * cosi));
+	if (sint2 > 1)
+		return 1; // total internal reflection
+
+	cost = Math.sqrt(1 - sint2);
+	cosi = Math.abs(cosi);
+	Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+	Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+
+	return ((Rs * Rs) + (Rp * Rp)) * 0.5;
 }
 
-// reflectance using Schlick's approximation.
-function rSchlick(incident, normal, n1, n2)
-{
-	let r0 = (n1 - n2) / (n1 + n2);
-	r0 *= r0;
-	// requires n1 <= n2.
-	let x = 1 + normal.dot(incident);
-	let result = (r0 + ((1 - r0) * x * x * x * x * x));
-	result = Math.max(0, result);
-	result = Math.min(result, 1);
-	return result;
-}
 
 
 let pOrO = new Vec3();
@@ -195,7 +228,7 @@ function intersectRectangle(rectangleOrigin, rectangleNormal, radiusU, radiusV, 
 	hitPoint.copy(rayO);
 	hitPoint.add(tempVec);
 
-	if (t > 0 && Math.abs(rectangleOrigin.x - hitPoint.x) < radiusU && 
+	if (t > 0 && Math.abs(rectangleOrigin.x - hitPoint.x) < radiusU &&
 		Math.abs(rectangleOrigin.z - hitPoint.z) < radiusV)
 	{
 		return t;
