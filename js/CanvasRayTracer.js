@@ -36,9 +36,21 @@ function handleWindowResize()
 	canvas.height = window.innerHeight;
 
 	aspectRatio = canvas.width / canvas.height;
-	vLen = Math.tan(thetaFOV); // height scale
-	uLen = vLen * aspectRatio; // width scale
-
+	
+	if (aspectRatio >= 1)
+	{
+		uLen = Math.tan(thetaFOV); // width scale
+		vLen = uLen; // height scale
+		uLen *= aspectRatio;
+	}
+	else
+	{
+		uLen = Math.tan(thetaFOV); // width scale
+		vLen = uLen; // height scale
+		vLen /= aspectRatio;
+	}
+	
+ 
 	pixelsColorHistory = null;
 	pixelsColorHistory = new Float32Array(canvas.width * canvas.height * 3);
 
@@ -167,6 +179,35 @@ let metalSpherePosition = new Vec3(-8, metalSphereRadius, -18);
 
 let coatSphereRadius = 2;
 let coatSpherePosition = new Vec3(4, coatSphereRadius, -10);
+let coatSphere_InverseMatrix = new Matrix4();
+
+let transformMatrix = new Matrix4();
+let translationMatrix = new Matrix4();
+let rotationXMatrix = new Matrix4();
+let rotationYMatrix = new Matrix4();
+let rotationZMatrix = new Matrix4();
+let scalingMatrix = new Matrix4();
+let shearingMatrix = new Matrix4();
+
+translationMatrix.makeTranslation(coatSpherePosition);
+rotationXMatrix.makeRotationX(Math.PI * 0.25);
+rotationYMatrix.makeRotationY(-0.5);
+rotationZMatrix.makeRotationZ(-0.4);
+scalingMatrix.makeScaling(coatSphereRadius, coatSphereRadius / 3, coatSphereRadius);
+shearingMatrix.makeShearing(0,0,1,0,0,0);
+transformMatrix.makeIdentity();
+
+transformMatrix.multiplyMatrices(transformMatrix, translationMatrix);
+//transformMatrix.multiplyMatrices(transformMatrix, rotationXMatrix);
+transformMatrix.multiplyMatrices(transformMatrix, rotationYMatrix);
+///transformMatrix.multiplyMatrices(transformMatrix, rotationZMatrix);
+
+transformMatrix.multiplyMatrices(transformMatrix, scalingMatrix);
+transformMatrix.multiplyMatrices(transformMatrix, shearingMatrix);
+
+
+coatSphere_InverseMatrix.copy(transformMatrix);
+coatSphere_InverseMatrix.invert();
 
 let glassSphereRadius = 2.0;
 let glassSpherePosition = new Vec3(10, glassSphereRadius, -15);
@@ -175,12 +216,15 @@ cameraTarget.set(checkerSpherePosition.x, checkerSpherePosition.y - 2, checkerSp
 
 let testT = Infinity;
 let hitPoint = new Vec3();
+let normal = new Vec3();
 let tempVec = new Vec3();
 let U = 0;
 let V = 0;
 let textureScaleU = 1;
 let textureScaleV = 1;
 let imgTextureIndex = 0;
+let rayObjOrigin = new Vec3();
+let rayObjDirection = new Vec3();
 
 function intersectScene()
 {
@@ -289,7 +333,7 @@ function intersectScene()
 		HitRecord.normal.subtract(metalSpherePosition);
 	}
 
-	testT = intersectSphere(coatSphereRadius, coatSpherePosition, rayOrigin, rayDirection);
+	/* testT = intersectSphere(coatSphereRadius, coatSpherePosition, rayOrigin, rayDirection);
 	if (testT < HitRecord.nearestT)
 	{
 		HitRecord.nearestT = testT;
@@ -301,6 +345,22 @@ function intersectScene()
 		hitPoint.add(tempVec);
 		HitRecord.normal.copy(hitPoint);
 		HitRecord.normal.subtract(coatSpherePosition);
+	} */
+
+	rayObjOrigin.copy(rayOrigin);
+	rayObjDirection.copy(rayDirection);
+
+	rayObjOrigin.transformPoint(coatSphere_InverseMatrix);
+	rayObjDirection.transformDirection(coatSphere_InverseMatrix);
+
+	testT = intersectUnitSphere(rayObjOrigin, rayObjDirection, normal);
+	if (testT < HitRecord.nearestT)
+	{
+		HitRecord.nearestT = testT;
+		HitRecord.type = CLEARCOAT_DIFFUSE;
+		HitRecord.color.set(0.01, 0.01, 0.8);
+		HitRecord.normal.copy(normal);
+		HitRecord.normal.transformNormalByMatInverse(coatSphere_InverseMatrix);
 	}
 
 	testT = intersectSphere(glassSphereRadius, glassSpherePosition, rayOrigin, rayDirection);
@@ -675,16 +735,19 @@ function draw()
 			imageData.data[imageDataIndex + 2] = pixelColor.z; // blue
 			imageData.data[imageDataIndex + 3] = 255;          // alpha
 
-			/* if (row == 0)
-			{
-				//console.log(column + ", " + row);
-				//console.log("canvasX: " + canvasX);
-				console.log("rayDir.x: " + rayDirection.x + "rayDir.y: " + 
-					rayDirection.y + "rayDir.z: " + rayDirection.z);
-			} */
+			/* pixelColor.x = Math.random() * 256;
+			pixelColor.y = pixelColor.x;
+			pixelColor.z = pixelColor.x * Math.random();
+			pixelColor.x += 65;
+			pixelColor.y += 30;
+			pixelColor.z += 70;
 
+			imageData.data[imageDataIndex + 0] = pixelColor.x; // red
+			imageData.data[imageDataIndex + 1] = pixelColor.y; // green
+			imageData.data[imageDataIndex + 2] = pixelColor.z; // blue
+			imageData.data[imageDataIndex + 3] = 255;          // alpha */
 		}
-		//console.log("g: " + g);
+
 	}
 
 	// draw the ray-traced image to the Canvas
