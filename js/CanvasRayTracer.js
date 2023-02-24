@@ -25,6 +25,7 @@ let uLen = 1; // width scale
 let pixelsColorHistory = null;
 let pixelsColorHistoryIndex = 0;
 let imageData = null;
+let imageDataArray;
 let imageDataIndex = 0;
 
 
@@ -55,6 +56,7 @@ function handleWindowResize()
 	pixelsColorHistory = new Float32Array(canvas.width * canvas.height * 3);
 
 	imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+	imageDataArray = imageData.data;
 
 	if (sampleCount == MAX_SAMPLE_COUNT)
 	{
@@ -730,10 +732,10 @@ function draw()
 
 			// slightly more complex method of directly writing to the Canvas imageData.data[] array, but 2x faster than above simpler method!
 			imageDataIndex = pixelIndex * 4;
-			imageData.data[imageDataIndex + 0] = pixelColor.x; // red
-			imageData.data[imageDataIndex + 1] = pixelColor.y; // green
-			imageData.data[imageDataIndex + 2] = pixelColor.z; // blue
-			imageData.data[imageDataIndex + 3] = 255;          // alpha
+			imageDataArray[imageDataIndex + 0] = pixelColor.x; // red
+			imageDataArray[imageDataIndex + 1] = pixelColor.y; // green
+			imageDataArray[imageDataIndex + 2] = pixelColor.z; // blue
+			imageDataArray[imageDataIndex + 3] = 255;          // alpha
 
 			/* pixelColor.x = Math.random() * 256;
 			pixelColor.y = pixelColor.x;
@@ -742,10 +744,10 @@ function draw()
 			pixelColor.y += 30;
 			pixelColor.z += 70;
 
-			imageData.data[imageDataIndex + 0] = pixelColor.x; // red
-			imageData.data[imageDataIndex + 1] = pixelColor.y; // green
-			imageData.data[imageDataIndex + 2] = pixelColor.z; // blue
-			imageData.data[imageDataIndex + 3] = 255;          // alpha */
+			imageDataArray[imageDataIndex + 0] = pixelColor.x; // red
+			imageDataArray[imageDataIndex + 1] = pixelColor.y; // green
+			imageDataArray[imageDataIndex + 2] = pixelColor.z; // blue
+			imageDataArray[imageDataIndex + 3] = 255;          // alpha */
 		}
 
 	}
