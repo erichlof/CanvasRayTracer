@@ -140,8 +140,9 @@ function setUpCameraFrame()
 	cameraRight.normalize();
 
 	cameraUp.crossVectors(cameraForward, cameraRight);
-	cameraUp.normalize();
+	//cameraUp.normalize();
 }
+
 
 let m00 = 0, m01 = 0, m02 = 0, m03 = 0;
 let m10 = 0, m11 = 0, m12 = 0, m13 = 0;
@@ -150,60 +151,63 @@ let m30 = 0, m31 = 0, m32 = 0, m33 = 0;
 
 function Matrix4()
 {
-	this.elements =
-	       [1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		0, 0, 0, 1];
+	this.elements = new Float32Array(16);
 }
 
 Matrix4.prototype.makeIdentity = function ()
 {
-	this.elements[0] = 1; this.elements[1] = 0; this.elements[2] = 0; this.elements[3] = 0;
-	this.elements[4] = 0; this.elements[5] = 1; this.elements[6] = 0; this.elements[7] = 0;
-	this.elements[8] = 0; this.elements[9] = 0; this.elements[10] = 1; this.elements[11] = 0;
-	this.elements[12] = 0; this.elements[13] = 0; this.elements[14] = 0; this.elements[15] = 1;
+	const el = this.elements;
+	el[0] = 1; el[1] = 0; el[2] = 0; el[3] = 0;
+	el[4] = 0; el[5] = 1; el[6] = 0; el[7] = 0;
+	el[8] = 0; el[9] = 0; el[10] = 1; el[11] = 0;
+	el[12] = 0; el[13] = 0; el[14] = 0; el[15] = 1;
 }
 
 /* Matrix4.prototype.set = function (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)
 {
-	this.elements[0] = a; this.elements[1] = b; this.elements[2] = c; this.elements[3] = d;
-	this.elements[4] = e; this.elements[5] = f; this.elements[6] = g; this.elements[7] = h;
-	this.elements[8] = i; this.elements[9] = j; this.elements[10] = k; this.elements[11] = l;
-	this.elements[12] = m; this.elements[13] = n; this.elements[14] = o; this.elements[15] = p;
+	const el = this.elements;
+	el[0] = a; el[1] = b; el[2] = c; el[3] = d;
+	el[4] = e; el[5] = f; el[6] = g; el[7] = h;
+	el[8] = i; el[9] = j; el[10] = k; el[11] = l;
+	el[12] = m; el[13] = n; el[14] = o; el[15] = p;
 } */
 
 Matrix4.prototype.copy = function (otherMatrix)
 {
-	this.elements[0] = otherMatrix.elements[0];
-	this.elements[1] = otherMatrix.elements[1];
-	this.elements[2] = otherMatrix.elements[2];
-	this.elements[3] = otherMatrix.elements[3];
-	this.elements[4] = otherMatrix.elements[4];
-	this.elements[5] = otherMatrix.elements[5];
-	this.elements[6] = otherMatrix.elements[6];
-	this.elements[7] = otherMatrix.elements[7];
-	this.elements[8] = otherMatrix.elements[8];
-	this.elements[9] = otherMatrix.elements[9];
-	this.elements[10] = otherMatrix.elements[10];
-	this.elements[11] = otherMatrix.elements[11];
-	this.elements[12] = otherMatrix.elements[12];
-	this.elements[13] = otherMatrix.elements[13];
-	this.elements[14] = otherMatrix.elements[14];
-	this.elements[15] = otherMatrix.elements[15];
+	const el = this.elements;
+	const oel = otherMatrix.elements;
+
+	el[0] = oel[0];
+	el[1] = oel[1];
+	el[2] = oel[2];
+	el[3] = oel[3];
+	el[4] = oel[4];
+	el[5] = oel[5];
+	el[6] = oel[6];
+	el[7] = oel[7];
+	el[8] = oel[8];
+	el[9] = oel[9];
+	el[10] = oel[10];
+	el[11] = oel[11];
+	el[12] = oel[12];
+	el[13] = oel[13];
+	el[14] = oel[14];
+	el[15] = oel[15];
 }
 
 Matrix4.prototype.transpose = function ()
 {
-	m00 = this.elements[0]; m01 = this.elements[1]; m02 = this.elements[2]; m03 = this.elements[3];
-	m10 = this.elements[4]; m11 = this.elements[5]; m12 = this.elements[6]; m13 = this.elements[7];
-	m20 = this.elements[8]; m21 = this.elements[9]; m22 = this.elements[10]; m23 = this.elements[11];
-	m30 = this.elements[12]; m31 = this.elements[13]; m32 = this.elements[14]; m33 = this.elements[15];
+	const el = this.elements;
 
-	this.elements[0] = m00; this.elements[1] = m10; this.elements[2] = m20; this.elements[3] = m30;
-	this.elements[4] = m01; this.elements[5] = m11; this.elements[6] = m21; this.elements[7] = m31;
-	this.elements[8] = m02; this.elements[9] = m12; this.elements[10] = m22; this.elements[11] = m32;
-	this.elements[12] = m03; this.elements[13] = m13; this.elements[14] = m23; this.elements[15] = m33;
+	m00 = el[0]; m01 = el[1]; m02 = el[2]; m03 = el[3];
+	m10 = el[4]; m11 = el[5]; m12 = el[6]; m13 = el[7];
+	m20 = el[8]; m21 = el[9]; m22 = el[10]; m23 = el[11];
+	m30 = el[12]; m31 = el[13]; m32 = el[14]; m33 = el[15];
+
+	el[0] = m00; el[1] = m10; el[2] = m20; el[3] = m30;
+	el[4] = m01; el[5] = m11; el[6] = m21; el[7] = m31;
+	el[8] = m02; el[9] = m12; el[10] = m22; el[11] = m32;
+	el[12] = m03; el[13] = m13; el[14] = m23; el[15] = m33;
 }
 
 let tmp_0 = 0, tmp_1 = 0, tmp_2 = 0, tmp_3 = 0;
@@ -218,10 +222,12 @@ let d = 0;
 
 Matrix4.prototype.invert = function ()
 {
-	m00 = this.elements[0]; m01 = this.elements[1]; m02 = this.elements[2]; m03 = this.elements[3];
-	m10 = this.elements[4]; m11 = this.elements[5]; m12 = this.elements[6]; m13 = this.elements[7];
-	m20 = this.elements[8]; m21 = this.elements[9]; m22 = this.elements[10]; m23 = this.elements[11];
-	m30 = this.elements[12]; m31 = this.elements[13]; m32 = this.elements[14]; m33 = this.elements[15];
+	const el = this.elements;
+
+	m00 = el[0]; m01 = el[1]; m02 = el[2]; m03 = el[3];
+	m10 = el[4]; m11 = el[5]; m12 = el[6]; m13 = el[7];
+	m20 = el[8]; m21 = el[9]; m22 = el[10]; m23 = el[11];
+	m30 = el[12]; m31 = el[13]; m32 = el[14]; m33 = el[15];
 
 	tmp_0 = m22 * m33; tmp_1 = m32 * m23; tmp_2 = m12 * m33; tmp_3 = m32 * m13;
 	tmp_4 = m12 * m23; tmp_5 = m22 * m13; tmp_6 = m02 * m33; tmp_7 = m32 * m03;
@@ -241,33 +247,33 @@ Matrix4.prototype.invert = function ()
 
 	d = 1.0 / (m00 * t_0 + m10 * t_1 + m20 * t_2 + m30 * t_3);
 
-	this.elements[0] = d * t_0;
-	this.elements[1] = d * t_1;
-	this.elements[2] = d * t_2;
-	this.elements[3] = d * t_3;
-	this.elements[4] = d * ((tmp_1 * m10 + tmp_2 * m20 + tmp_5 * m30) -
+	el[0] = d * t_0;
+	el[1] = d * t_1;
+	el[2] = d * t_2;
+	el[3] = d * t_3;
+	el[4] = d * ((tmp_1 * m10 + tmp_2 * m20 + tmp_5 * m30) -
 		(tmp_0 * m10 + tmp_3 * m20 + tmp_4 * m30));
-	this.elements[5] = d * ((tmp_0 * m00 + tmp_7 * m20 + tmp_8 * m30) -
+	el[5] = d * ((tmp_0 * m00 + tmp_7 * m20 + tmp_8 * m30) -
 		(tmp_1 * m00 + tmp_6 * m20 + tmp_9 * m30));
-	this.elements[6] = d * ((tmp_3 * m00 + tmp_6 * m10 + tmp_11 * m30) -
+	el[6] = d * ((tmp_3 * m00 + tmp_6 * m10 + tmp_11 * m30) -
 		(tmp_2 * m00 + tmp_7 * m10 + tmp_10 * m30));
-	this.elements[7] = d * ((tmp_4 * m00 + tmp_9 * m10 + tmp_10 * m20) -
+	el[7] = d * ((tmp_4 * m00 + tmp_9 * m10 + tmp_10 * m20) -
 		(tmp_5 * m00 + tmp_8 * m10 + tmp_11 * m20));
-	this.elements[8] = d * ((tmp_12 * m13 + tmp_15 * m23 + tmp_16 * m33) -
+	el[8] = d * ((tmp_12 * m13 + tmp_15 * m23 + tmp_16 * m33) -
 		(tmp_13 * m13 + tmp_14 * m23 + tmp_17 * m33));
-	this.elements[9] = d * ((tmp_13 * m03 + tmp_18 * m23 + tmp_21 * m33) -
+	el[9] = d * ((tmp_13 * m03 + tmp_18 * m23 + tmp_21 * m33) -
 		(tmp_12 * m03 + tmp_19 * m23 + tmp_20 * m33));
-	this.elements[10] = d * ((tmp_14 * m03 + tmp_19 * m13 + tmp_22 * m33) -
+	el[10] = d * ((tmp_14 * m03 + tmp_19 * m13 + tmp_22 * m33) -
 		(tmp_15 * m03 + tmp_18 * m13 + tmp_23 * m33));
-	this.elements[11] = d * ((tmp_17 * m03 + tmp_20 * m13 + tmp_23 * m23) -
+	el[11] = d * ((tmp_17 * m03 + tmp_20 * m13 + tmp_23 * m23) -
 		(tmp_16 * m03 + tmp_21 * m13 + tmp_22 * m23));
-	this.elements[12] = d * ((tmp_14 * m22 + tmp_17 * m32 + tmp_13 * m12) -
+	el[12] = d * ((tmp_14 * m22 + tmp_17 * m32 + tmp_13 * m12) -
 		(tmp_16 * m32 + tmp_12 * m12 + tmp_15 * m22));
-	this.elements[13] = d * ((tmp_20 * m32 + tmp_12 * m02 + tmp_19 * m22) -
+	el[13] = d * ((tmp_20 * m32 + tmp_12 * m02 + tmp_19 * m22) -
 		(tmp_18 * m22 + tmp_21 * m32 + tmp_13 * m02));
-	this.elements[14] = d * ((tmp_18 * m12 + tmp_23 * m32 + tmp_15 * m02) -
+	el[14] = d * ((tmp_18 * m12 + tmp_23 * m32 + tmp_15 * m02) -
 		(tmp_22 * m32 + tmp_14 * m02 + tmp_19 * m12));
-	this.elements[15] = d * ((tmp_22 * m22 + tmp_16 * m02 + tmp_21 * m12) -
+	el[15] = d * ((tmp_22 * m22 + tmp_16 * m02 + tmp_21 * m12) -
 		(tmp_20 * m12 + tmp_23 * m22 + tmp_17 * m02));
 }
 
@@ -283,90 +289,99 @@ let b30 = 0, b31 = 0, b32 = 0, b33 = 0;
 
 Matrix4.prototype.multiplyMatrices = function (MatrixA, MatrixB)
 {
-	a00 = MatrixA.elements[0]; a01 = MatrixA.elements[1]; a02 = MatrixA.elements[2]; a03 = MatrixA.elements[3];
-	a10 = MatrixA.elements[4]; a11 = MatrixA.elements[5]; a12 = MatrixA.elements[6]; a13 = MatrixA.elements[7];
-	a20 = MatrixA.elements[8]; a21 = MatrixA.elements[9]; a22 = MatrixA.elements[10]; a23 = MatrixA.elements[11];
-	a30 = MatrixA.elements[12]; a31 = MatrixA.elements[13]; a32 = MatrixA.elements[14]; a33 = MatrixA.elements[15];
+	const el = this.elements;
+	const ael = MatrixA.elements;
+	const bel = MatrixB.elements;
+	a00 = ael[0]; a01 = ael[1]; a02 = ael[2]; a03 = ael[3];
+	a10 = ael[4]; a11 = ael[5]; a12 = ael[6]; a13 = ael[7];
+	a20 = ael[8]; a21 = ael[9]; a22 = ael[10]; a23 = ael[11];
+	a30 = ael[12]; a31 = ael[13]; a32 = ael[14]; a33 = ael[15];
 
-	b00 = MatrixB.elements[0]; b01 = MatrixB.elements[1]; b02 = MatrixB.elements[2]; b03 = MatrixB.elements[3];
-	b10 = MatrixB.elements[4]; b11 = MatrixB.elements[5]; b12 = MatrixB.elements[6]; b13 = MatrixB.elements[7];
-	b20 = MatrixB.elements[8]; b21 = MatrixB.elements[9]; b22 = MatrixB.elements[10]; b23 = MatrixB.elements[11];
-	b30 = MatrixB.elements[12]; b31 = MatrixB.elements[13]; b32 = MatrixB.elements[14]; b33 = MatrixB.elements[15];
+	b00 = bel[0]; b01 = bel[1]; b02 = bel[2]; b03 = bel[3];
+	b10 = bel[4]; b11 = bel[5]; b12 = bel[6]; b13 = bel[7];
+	b20 = bel[8]; b21 = bel[9]; b22 = bel[10]; b23 = bel[11];
+	b30 = bel[12]; b31 = bel[13]; b32 = bel[14]; b33 = bel[15];
 
-	this.elements[0] = a00 * b00 + a10 * b01 + a20 * b02 + a30 * b03;
-	this.elements[1] = a01 * b00 + a11 * b01 + a21 * b02 + a31 * b03;
-	this.elements[2] = a02 * b00 + a12 * b01 + a22 * b02 + a32 * b03;
-	this.elements[3] = a03 * b00 + a13 * b01 + a23 * b02 + a33 * b03;
-	this.elements[4] = a00 * b10 + a10 * b11 + a20 * b12 + a30 * b13;
-	this.elements[5] = a01 * b10 + a11 * b11 + a21 * b12 + a31 * b13;
-	this.elements[6] = a02 * b10 + a12 * b11 + a22 * b12 + a32 * b13;
-	this.elements[7] = a03 * b10 + a13 * b11 + a23 * b12 + a33 * b13;
-	this.elements[8] = a00 * b20 + a10 * b21 + a20 * b22 + a30 * b23;
-	this.elements[9] = a01 * b20 + a11 * b21 + a21 * b22 + a31 * b23;
-	this.elements[10] = a02 * b20 + a12 * b21 + a22 * b22 + a32 * b23;
-	this.elements[11] = a03 * b20 + a13 * b21 + a23 * b22 + a33 * b23;
-	this.elements[12] = a00 * b30 + a10 * b31 + a20 * b32 + a30 * b33;
-	this.elements[13] = a01 * b30 + a11 * b31 + a21 * b32 + a31 * b33;
-	this.elements[14] = a02 * b30 + a12 * b31 + a22 * b32 + a32 * b33;
-	this.elements[15] = a03 * b30 + a13 * b31 + a23 * b32 + a33 * b33;
+	el[0] = a00 * b00 + a10 * b01 + a20 * b02 + a30 * b03;
+	el[1] = a01 * b00 + a11 * b01 + a21 * b02 + a31 * b03;
+	el[2] = a02 * b00 + a12 * b01 + a22 * b02 + a32 * b03;
+	el[3] = a03 * b00 + a13 * b01 + a23 * b02 + a33 * b03;
+	el[4] = a00 * b10 + a10 * b11 + a20 * b12 + a30 * b13;
+	el[5] = a01 * b10 + a11 * b11 + a21 * b12 + a31 * b13;
+	el[6] = a02 * b10 + a12 * b11 + a22 * b12 + a32 * b13;
+	el[7] = a03 * b10 + a13 * b11 + a23 * b12 + a33 * b13;
+	el[8] = a00 * b20 + a10 * b21 + a20 * b22 + a30 * b23;
+	el[9] = a01 * b20 + a11 * b21 + a21 * b22 + a31 * b23;
+	el[10] = a02 * b20 + a12 * b21 + a22 * b22 + a32 * b23;
+	el[11] = a03 * b20 + a13 * b21 + a23 * b22 + a33 * b23;
+	el[12] = a00 * b30 + a10 * b31 + a20 * b32 + a30 * b33;
+	el[13] = a01 * b30 + a11 * b31 + a21 * b32 + a31 * b33;
+	el[14] = a02 * b30 + a12 * b31 + a22 * b32 + a32 * b33;
+	el[15] = a03 * b30 + a13 * b31 + a23 * b32 + a33 * b33;
 }
 
 Matrix4.prototype.makeTranslation = function (v3)
 {
-	this.elements[0] = 1; this.elements[1] = 0; this.elements[2] = 0; this.elements[3] = 0;
-	this.elements[4] = 0; this.elements[5] = 1; this.elements[6] = 0; this.elements[7] = 0;
-	this.elements[8] = 0; this.elements[9] = 0; this.elements[10] = 1; this.elements[11] = 0;
-	this.elements[12] = v3.x; this.elements[13] = v3.y; this.elements[14] = v3.z; this.elements[15] = 1;
+	const el = this.elements;
+	el[0] = 1; el[1] = 0; el[2] = 0; el[3] = 0;
+	el[4] = 0; el[5] = 1; el[6] = 0; el[7] = 0;
+	el[8] = 0; el[9] = 0; el[10] = 1; el[11] = 0;
+	el[12] = v3.x; el[13] = v3.y; el[14] = v3.z; el[15] = 1;
 }
 
 let cos, sin;
 Matrix4.prototype.makeRotationX = function (angleInRadians)
 {
+	const el = this.elements;
 	cos = Math.cos(angleInRadians);
 	sin = Math.sin(angleInRadians);
 
-	this.elements[0] = 1; this.elements[1] = 0; this.elements[2] = 0; this.elements[3] = 0;
-	this.elements[4] = 0; this.elements[5] = cos; this.elements[6] = sin; this.elements[7] = 0;
-	this.elements[8] = 0; this.elements[9] = -sin; this.elements[10] = cos; this.elements[11] = 0;
-	this.elements[12] = 0; this.elements[13] = 0; this.elements[14] = 0; this.elements[15] = 1;
+	el[0] = 1; el[1] = 0; el[2] = 0; el[3] = 0;
+	el[4] = 0; el[5] = cos; el[6] = sin; el[7] = 0;
+	el[8] = 0; el[9] = -sin; el[10] = cos; el[11] = 0;
+	el[12] = 0; el[13] = 0; el[14] = 0; el[15] = 1;
 }
 
 Matrix4.prototype.makeRotationY = function (angleInRadians)
 {
+	const el = this.elements;
 	cos = Math.cos(angleInRadians);
 	sin = Math.sin(angleInRadians);
 
-	this.elements[0] = cos; this.elements[1] = 0; this.elements[2] = -sin; this.elements[3] = 0;
-	this.elements[4] = 0; this.elements[5] = 1; this.elements[6] = 0; this.elements[7] = 0;
-	this.elements[8] = sin; this.elements[9] = 0; this.elements[10] = cos; this.elements[11] = 0;
-	this.elements[12] = 0; this.elements[13] = 0; this.elements[14] = 0; this.elements[15] = 1;
+	el[0] = cos; el[1] = 0; el[2] = -sin; el[3] = 0;
+	el[4] = 0; el[5] = 1; el[6] = 0; el[7] = 0;
+	el[8] = sin; el[9] = 0; el[10] = cos; el[11] = 0;
+	el[12] = 0; el[13] = 0; el[14] = 0; el[15] = 1;
 }
 
 Matrix4.prototype.makeRotationZ = function (angleInRadians)
 {
+	const el = this.elements;
 	cos = Math.cos(angleInRadians);
 	sin = Math.sin(angleInRadians);
 
-	this.elements[0] = cos; this.elements[1] = sin; this.elements[2] = 0; this.elements[3] = 0;
-	this.elements[4] = -sin; this.elements[5] = cos; this.elements[6] = 0; this.elements[7] = 0;
-	this.elements[8] = 0; this.elements[9] = 0; this.elements[10] = 1; this.elements[11] = 0;
-	this.elements[12] = 0; this.elements[13] = 0; this.elements[14] = 0; this.elements[15] = 1;
+	el[0] = cos; el[1] = sin; el[2] = 0; el[3] = 0;
+	el[4] = -sin; el[5] = cos; el[6] = 0; el[7] = 0;
+	el[8] = 0; el[9] = 0; el[10] = 1; el[11] = 0;
+	el[12] = 0; el[13] = 0; el[14] = 0; el[15] = 1;
 }
 
 Matrix4.prototype.makeScaling = function (x, y, z)
 {
-	this.elements[0] = x; this.elements[1] = 0; this.elements[2] = 0; this.elements[3] = 0;
-	this.elements[4] = 0; this.elements[5] = y; this.elements[6] = 0; this.elements[7] = 0;
-	this.elements[8] = 0; this.elements[9] = 0; this.elements[10] = z; this.elements[11] = 0;
-	this.elements[12] = 0; this.elements[13] = 0; this.elements[14] = 0; this.elements[15] = 1;
+	const el = this.elements;
+	el[0] = x; el[1] = 0; el[2] = 0; el[3] = 0;
+	el[4] = 0; el[5] = y; el[6] = 0; el[7] = 0;
+	el[8] = 0; el[9] = 0; el[10] = z; el[11] = 0;
+	el[12] = 0; el[13] = 0; el[14] = 0; el[15] = 1;
 }
 
 Matrix4.prototype.makeShearing = function (XbyY, XbyZ, YbyX, YbyZ, ZbyX, ZbyY)
 {
-	this.elements[0] = 1; this.elements[1] = YbyX; this.elements[2] = ZbyX; this.elements[3] = 0;
-	this.elements[4] = XbyY; this.elements[5] = 1; this.elements[6] = ZbyY; this.elements[7] = 0;
-	this.elements[8] = XbyZ; this.elements[9] = YbyZ; this.elements[10] = 1; this.elements[11] = 0;
-	this.elements[12] = 0; this.elements[13] = 0; this.elements[14] = 0; this.elements[15] = 1;
+	const el = this.elements;
+	el[0] = 1; el[1] = YbyX; el[2] = ZbyX; el[3] = 0;
+	el[4] = XbyY; el[5] = 1; el[6] = ZbyY; el[7] = 0;
+	el[8] = XbyZ; el[9] = YbyZ; el[10] = 1; el[11] = 0;
+	el[12] = 0; el[13] = 0; el[14] = 0; el[15] = 1;
 }
 
 let xAxis = new Vec3();
@@ -375,6 +390,8 @@ let zAxis = new Vec3();
 
 Matrix4.prototype.makeLookAt = function (v3_eyePos, v3_target)
 {
+	const el = this.elements;
+
 	zAxis.copy(v3_target);
 	zAxis.subtract(v3_eyePos);
 	zAxis.normalize();
@@ -385,10 +402,10 @@ Matrix4.prototype.makeLookAt = function (v3_eyePos, v3_target)
 	yAxis.crossVectors(zAxis, xAxis);
 	yAxis.normalize();
 
-	this.elements[0] = xAxis.x; this.elements[1] = xAxis.y; this.elements[2] = xAxis.z; this.elements[3] = 0;
-	this.elements[4] = yAxis.x; this.elements[5] = yAxis.y; this.elements[6] = yAxis.z; this.elements[7] = 0;
-	this.elements[8] = zAxis.x; this.elements[9] = zAxis.y; this.elements[10] = zAxis.z; this.elements[11] = 0;
-	this.elements[12] = v3_eyePos.x; this.elements[13] = v3_eyePos.y; this.elements[14] = v3_eyePos.z; this.elements[15] = 1;
+	el[0] = xAxis.x; el[1] = xAxis.y; el[2] = xAxis.z; el[3] = 0;
+	el[4] = yAxis.x; el[5] = yAxis.y; el[6] = yAxis.z; el[7] = 0;
+	el[8] = zAxis.x; el[9] = zAxis.y; el[10] = zAxis.z; el[11] = 0;
+	el[12] = v3_eyePos.x; el[13] = v3_eyePos.y; el[14] = v3_eyePos.z; el[15] = 1;
 }
 
 
@@ -396,37 +413,40 @@ let vx, vy, vz;
 
 Vec3.prototype.transformPoint = function (m4_Matrix)
 {
+	const el = m4_Matrix.elements;
 	vx = this.x;
 	vy = this.y;
 	vz = this.z;
 
-	d = vx * m4_Matrix.elements[3] + vy * m4_Matrix.elements[7] + vz * m4_Matrix.elements[11] + m4_Matrix.elements[15];
+	d = vx * el[3] + vy * el[7] + vz * el[11] + el[15];
 
-	this.x = (vx * m4_Matrix.elements[0] + vy * m4_Matrix.elements[4] + vz * m4_Matrix.elements[8] + m4_Matrix.elements[12]) / d;
-	this.y = (vx * m4_Matrix.elements[1] + vy * m4_Matrix.elements[5] + vz * m4_Matrix.elements[9] + m4_Matrix.elements[13]) / d;
-	this.z = (vx * m4_Matrix.elements[2] + vy * m4_Matrix.elements[6] + vz * m4_Matrix.elements[10] + m4_Matrix.elements[14]) / d;
+	this.x = (vx * el[0] + vy * el[4] + vz * el[8] + el[12]) / d;
+	this.y = (vx * el[1] + vy * el[5] + vz * el[9] + el[13]) / d;
+	this.z = (vx * el[2] + vy * el[6] + vz * el[10] + el[14]) / d;
 }
 
 Vec3.prototype.transformDirection = function (m4_Matrix)
 {
+	const el = m4_Matrix.elements;
 	vx = this.x;
 	vy = this.y;
 	vz = this.z;
 
-	this.x = vx * m4_Matrix.elements[0] + vy * m4_Matrix.elements[4] + vz * m4_Matrix.elements[8];
-	this.y = vx * m4_Matrix.elements[1] + vy * m4_Matrix.elements[5] + vz * m4_Matrix.elements[9];
-	this.z = vx * m4_Matrix.elements[2] + vy * m4_Matrix.elements[6] + vz * m4_Matrix.elements[10];
+	this.x = vx * el[0] + vy * el[4] + vz * el[8];
+	this.y = vx * el[1] + vy * el[5] + vz * el[9];
+	this.z = vx * el[2] + vy * el[6] + vz * el[10];
 }
 
 Vec3.prototype.transformNormalByMatInverse = function (m4_MatInverse)
 {
+	const el = m4_MatInverse.elements;
 	vx = this.x;
 	vy = this.y;
 	vz = this.z;
 
-	this.x = vx * m4_MatInverse.elements[0] + vy * m4_MatInverse.elements[1] + vz * m4_MatInverse.elements[2];
-	this.y = vx * m4_MatInverse.elements[4] + vy * m4_MatInverse.elements[5] + vz * m4_MatInverse.elements[6];
-	this.z = vx * m4_MatInverse.elements[8] + vy * m4_MatInverse.elements[9] + vz * m4_MatInverse.elements[10];
+	this.x = vx * el[0] + vy * el[1] + vz * el[2];
+	this.y = vx * el[4] + vy * el[5] + vz * el[6];
+	this.z = vx * el[8] + vy * el[9] + vz * el[10];
 }
 
 
