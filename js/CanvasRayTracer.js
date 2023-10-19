@@ -13,7 +13,7 @@ let startTime = 0;
 let endTime = 0;
 let renderTime = 0;
 
-const MAX_SAMPLE_COUNT = 20;
+const MAX_SAMPLE_COUNT = 1;
 let sampleCount = 0;
 
 let aspectRatio = 1;
@@ -143,7 +143,7 @@ sunColor.multiplyScalar(sunPower);
 let directionToSun = new Vec3(-1, 0.7, 0.4);
 directionToSun.normalize();
 let diffuseFalloff = 0;
-let cameraPosition = new Vec3(0, 4, 0);
+let cameraPosition = new Vec3(0, 4, 5);
 let cameraTarget = new Vec3();
 let canvasOffsetZFromCamera = -1;
 let pixelPosition = new Vec3();
@@ -162,7 +162,7 @@ let reflectionRayColorMask = new Vec3();
 let isShadowRay = false;
 let willNeedReflectionRay = false;
 
-let groundRectangleOrigin = new Vec3(0, 0, 0);
+let groundRectangleOrigin = new Vec3(0, 0, -15);
 let groundRectangleNormal = new Vec3(0, 1, 0);
 groundRectangleNormal.normalize();
 let groundRectRadiusU = 100;
@@ -170,14 +170,34 @@ let groundRectRadiusV = 100;
 let checkerboardColor1 = new Vec3(0.4, 0.4, 0.4);//Vec3(0.5, 0.01, 0.01);
 let checkerboardColor2 = new Vec3(0.05, 0.05, 0.05);//Vec3(0.8, 0.8, 0.01);
 
+let boxMinCorner = new Vec3(-12, 0, -12);
+let boxMaxCorner = new Vec3(-10, 2, -8);
+
 let checkerSphereRadius = 3.5;
 let checkerSpherePosition = new Vec3(0, checkerSphereRadius, -15);
 
-let diffuseSphereRadius = 2;
-let diffuseSpherePosition = new Vec3(-8, diffuseSphereRadius, -10);
-
 let metalSphereRadius = 3;
 let metalSpherePosition = new Vec3(-8, metalSphereRadius, -18);
+
+let cylinderWidthRadius = 2;
+let cylinderHeightRadius = 2;
+let cylinderPosition = new Vec3(-7, cylinderHeightRadius, -17);
+
+let coneHeightRadius = 1;
+let conePosition = new Vec3(-2, coneHeightRadius, -5);
+
+let paraboloidHeightRadius = 1;
+let paraboloidPosition = new Vec3(2, paraboloidHeightRadius, -5);
+
+let hyperboloidInnerRadius = 0.5;
+let hyperboloidHeightRadius = 1;
+let hyperboloidPosition = new Vec3(-6, hyperboloidHeightRadius, -5);
+
+let hyperbolicParaboloidRadius = 1;
+let hyperbolicParaboloidPosition = new Vec3(6, hyperbolicParaboloidRadius, -5);
+
+let diffuseSphereRadius = 2;
+let diffuseSpherePosition = new Vec3(-6, diffuseSphereRadius, -10);
 
 let coatSphereRadius = 2;
 let coatSpherePosition = new Vec3(4, coatSphereRadius, -10);
@@ -214,19 +234,15 @@ coatSphere_InverseMatrix.invert();
 let glassSphereRadius = 2.0;
 let glassSpherePosition = new Vec3(10, glassSphereRadius, -15);
 
-cameraTarget.set(checkerSpherePosition.x, checkerSpherePosition.y - 2, checkerSpherePosition.z);
+cameraTarget.copy(checkerSpherePosition);
 
 let testT = Infinity;
-let hitPoint = new Vec3();
-let normal = new Vec3();
-let tempVec = new Vec3();
-let U = 0;
-let V = 0;
 let textureScaleU = 1;
 let textureScaleV = 1;
 let imgTextureIndex = 0;
 let rayObjOrigin = new Vec3();
 let rayObjDirection = new Vec3();
+
 
 function intersectScene()
 {
@@ -239,10 +255,7 @@ function intersectScene()
 	{
 		HitRecord.nearestT = testT;
 		HitRecord.type = CLEARCOAT_DIFFUSE;
-		tempVec.copy(rayDirection);
-		tempVec.multiplyScalar(HitRecord.nearestT);
-		hitPoint.copy(rayOrigin);
-		hitPoint.add(tempVec);
+		hitPoint.getPointAlongRay(rayOrigin, rayDirection, testT);
 		/* U = Math.floor(hitPoint.x * 0.4);
 		V = Math.floor(hitPoint.z * 0.4);
 		if ((U + V) % 2 == 0)
@@ -253,100 +266,264 @@ function intersectScene()
 		textureScaleU = 10;
 		textureScaleV = 10;
 		calcRectangleUV(hitPoint, groundRectRadiusU, groundRectRadiusV, groundRectangleOrigin);
-		U *= img.width;
-		U = Math.floor(U * textureScaleU) % img.width;
-		
-		V *= img.height;
-		V = Math.floor(V * textureScaleV) % img.height;
+		U = Math.floor(U * textureScaleU * img.width) % img.width;
+		V = Math.floor(V * textureScaleV * img.height) % img.height;
 
 		imgTextureIndex = (V * img.width + U) * 4;
 		HitRecord.color.set(textureImageData.data[imgTextureIndex + 0] / 255,
 			textureImageData.data[imgTextureIndex + 1] / 255,
 			textureImageData.data[imgTextureIndex + 2] / 255);
-		HitRecord.color.x = Math.pow(HitRecord.color.x, 2.2);
-		HitRecord.color.y = Math.pow(HitRecord.color.y, 2.2);
-		HitRecord.color.z = Math.pow(HitRecord.color.z, 2.2);
+		// remove gamma from texture image (map color into linear color space)
+		HitRecord.color.x *= HitRecord.color.x;
+		HitRecord.color.y *= HitRecord.color.y;
+		HitRecord.color.z *= HitRecord.color.z;
 
 		HitRecord.normal.copy(groundRectangleNormal);
 	}
 
-	testT = intersectSphere(checkerSphereRadius, checkerSpherePosition, rayOrigin, rayDirection);
+	testT = intersectBox(boxMinCorner, boxMaxCorner, rayOrigin, rayDirection, normal);
+	if (testT < HitRecord.nearestT)
+	{
+		HitRecord.nearestT = testT;
+		HitRecord.type = CLEARCOAT_DIFFUSE;
+		hitPoint.getPointAlongRay(rayOrigin, rayDirection, testT);
+		//HitRecord.color.set(0.01, 1.0, 1.0);
+		U = Math.round(hitPoint.x * 2 + 0.50001);
+		V = Math.round(hitPoint.y * 2 + 0.50001);
+		W = Math.round(hitPoint.z * 2 - 0.50001);
+		if (Math.abs(U + V + W) % 2 == 0)
+			HitRecord.color.set(0.8, 0.8, 0.8);
+		else
+			HitRecord.color.set(0.5, 0, 0);
+		HitRecord.normal.copy(normal);
+		
+	}
+
+	testT = intersectSphere(checkerSphereRadius, checkerSpherePosition, rayOrigin, rayDirection, normal);
 	if (testT < HitRecord.nearestT)
 	{
 		HitRecord.nearestT = testT;
 		HitRecord.type = CLEARCOAT_DIFFUSE;
 
-		tempVec.copy(rayDirection);
-		tempVec.multiplyScalar(HitRecord.nearestT);
-		hitPoint.copy(rayOrigin);
-		hitPoint.add(tempVec);
+		hitPoint.getPointAlongRay(rayOrigin, rayDirection, testT);
 		calcSphereUV(hitPoint, checkerSphereRadius, checkerSpherePosition);
+
+		/* U = Math.floor(U * 12);
+		V = Math.floor(V * 6);
+		if ((U + V) % 2 == 0)
+			HitRecord.color.set(0.8, 0.8, 0.8);
+		else
+			HitRecord.color.set(0.5, 0, 0); */ 
+		
+		textureScaleU = 2;
+		textureScaleV = 1;
+		U = Math.floor(U * textureScaleU * img.width) % img.width;
+		V = Math.floor(V * textureScaleV * img.height) % img.height;
+
+		imgTextureIndex = (V * img.width + U) * 4;
+		
+		HitRecord.color.set(textureImageData.data[imgTextureIndex + 0] / 255,
+			textureImageData.data[imgTextureIndex + 1] / 255,
+			textureImageData.data[imgTextureIndex + 2] / 255);
+		// remove gamma from texture image (map color into linear color space)
+		HitRecord.color.x *= HitRecord.color.x;
+		HitRecord.color.y *= HitRecord.color.y;
+		HitRecord.color.z *= HitRecord.color.z;
+
+		HitRecord.normal.copy(normal);
+	}
+
+	testT = intersectSphere(diffuseSphereRadius, diffuseSpherePosition, rayOrigin, rayDirection, normal);
+	if (testT < HitRecord.nearestT)
+	{
+		HitRecord.nearestT = testT;
+		HitRecord.type = DIFFUSE;
+		HitRecord.color.set(0.7, 0.01, 0.01);
 		/* U = Math.floor(U * 12);
 		V = Math.floor(V * 6);
 		if ((U + V) % 2 == 0)
 			HitRecord.color.set(0.8, 0.8, 0.8);
 		else
 			HitRecord.color.set(0.5, 0, 0); */
-		textureScaleU = 1;
+		HitRecord.normal.copy(normal);
+	}
+
+	testT = intersectCylinder(cylinderWidthRadius, cylinderHeightRadius, cylinderPosition, rayOrigin, rayDirection, normal);
+	if (testT < HitRecord.nearestT)
+	{
+		HitRecord.nearestT = testT;
+		HitRecord.type = CLEARCOAT_DIFFUSE;
+		//HitRecord.color.set(0.01, 0.7, 0.01);
+		hitPoint.getPointAlongRay(rayOrigin, rayDirection, testT);
+		calcCylinderUV(hitPoint, cylinderHeightRadius, cylinderPosition);
+		/* textureScaleU = 9;
+		textureScaleV = 3;
+		U = Math.floor(U * textureScaleU);
+		V = Math.floor(V * textureScaleV);
+		if ((U + V) % 2 == 0)
+			HitRecord.color.set(0.8, 0.8, 0.8);
+		else
+			HitRecord.color.set(0.5, 0, 0); */
+
+		textureScaleU = 2;
 		textureScaleV = 1;
-		U *= img.width;
-		U = Math.floor(U * textureScaleU * 2) % img.width;
-		
-		V *= img.height;
-		V = Math.floor(V * textureScaleV) % img.height;
+		U = Math.floor(U * textureScaleU * img.width) % img.width;
+		V = Math.floor(V * textureScaleV * img.height) % img.height;
 
 		imgTextureIndex = (V * img.width + U) * 4;
+		
 		HitRecord.color.set(textureImageData.data[imgTextureIndex + 0] / 255,
 			textureImageData.data[imgTextureIndex + 1] / 255,
 			textureImageData.data[imgTextureIndex + 2] / 255);
-		HitRecord.color.x = Math.pow(HitRecord.color.x, 2.2);
-		HitRecord.color.y = Math.pow(HitRecord.color.y, 2.2);
-		HitRecord.color.z = Math.pow(HitRecord.color.z, 2.2);
+		// remove gamma from texture image (map color into linear color space)
+		HitRecord.color.x *= HitRecord.color.x;
+		HitRecord.color.y *= HitRecord.color.y;
+		HitRecord.color.z *= HitRecord.color.z;
 
-		HitRecord.normal.copy(hitPoint);
-		HitRecord.normal.subtract(checkerSpherePosition);
+		HitRecord.normal.copy(normal);
 	}
 
-	testT = intersectSphere(diffuseSphereRadius, diffuseSpherePosition, rayOrigin, rayDirection);
+	testT = intersectCone(coneHeightRadius, conePosition, rayOrigin, rayDirection, normal);
 	if (testT < HitRecord.nearestT)
 	{
 		HitRecord.nearestT = testT;
-		HitRecord.type = DIFFUSE;
-		HitRecord.color.set(0.7, 0.01, 0.01);
-		tempVec.copy(rayDirection);
-		tempVec.multiplyScalar(HitRecord.nearestT);
-		hitPoint.copy(rayOrigin);
-		hitPoint.add(tempVec);
-		HitRecord.normal.copy(hitPoint);
-		HitRecord.normal.subtract(diffuseSpherePosition);
+		HitRecord.type = CLEARCOAT_DIFFUSE;
+		//HitRecord.color.set(0.01, 0.7, 0.01);
+		hitPoint.getPointAlongRay(rayOrigin, rayDirection, testT);
+		calcCylinderUV(hitPoint, coneHeightRadius, conePosition);
+		textureScaleU = 10;
+		textureScaleV = 5;
+		U = Math.floor(U * textureScaleU);
+		V = Math.floor(V * textureScaleV);
+		if ((U + V) % 2 == 0)
+			HitRecord.color.set(0.8, 0.8, 0.8);
+		else
+			HitRecord.color.set(0.5, 0, 0);
+
+		/* textureScaleU = 1;
+		textureScaleV = 0.5;
+		U = Math.floor(U * textureScaleU * img.width) % img.width;
+		V = Math.floor(V * textureScaleV * img.height) % img.height;
+
+		imgTextureIndex = (V * img.width + U) * 4;
+		
+		HitRecord.color.set(textureImageData.data[imgTextureIndex + 0] / 255,
+			textureImageData.data[imgTextureIndex + 1] / 255,
+			textureImageData.data[imgTextureIndex + 2] / 255);
+		// remove gamma from texture image (map color into linear color space)
+		HitRecord.color.x *= HitRecord.color.x;
+		HitRecord.color.y *= HitRecord.color.y;
+		HitRecord.color.z *= HitRecord.color.z; */
+		HitRecord.normal.copy(normal);
 	}
 
-	testT = intersectSphere(metalSphereRadius, metalSpherePosition, rayOrigin, rayDirection);
+	testT = intersectParaboloid(paraboloidHeightRadius, paraboloidPosition, rayOrigin, rayDirection, normal);
 	if (testT < HitRecord.nearestT)
 	{
 		HitRecord.nearestT = testT;
-		HitRecord.type = METAL;
-		HitRecord.color.set(0.7, 0.7, 0.7);//(0.955008, 0.637427, 0.538163);
-		tempVec.copy(rayDirection);
-		tempVec.multiplyScalar(HitRecord.nearestT);
-		hitPoint.copy(rayOrigin);
-		hitPoint.add(tempVec);
-		HitRecord.normal.copy(hitPoint);
-		HitRecord.normal.subtract(metalSpherePosition);
+		HitRecord.type = CLEARCOAT_DIFFUSE;
+		//HitRecord.color.set(0.01, 0.7, 0.01);
+		hitPoint.getPointAlongRay(rayOrigin, rayDirection, testT);
+		calcCylinderUV(hitPoint, paraboloidHeightRadius, paraboloidPosition);
+		textureScaleU = 10;
+		textureScaleV = 5;
+		U = Math.floor(U * textureScaleU);
+		V = Math.floor(V * textureScaleV);
+		if ((U + V) % 2 == 0)
+			HitRecord.color.set(0.8, 0.8, 0.8);
+		else
+			HitRecord.color.set(0.5, 0, 0);
+
+		/* textureScaleU = 1;
+		textureScaleV = 0.5;
+		U = Math.floor(U * textureScaleU * img.width) % img.width;
+		V = Math.floor(V * textureScaleV * img.height) % img.height;
+
+		imgTextureIndex = (V * img.width + U) * 4;
+		
+		HitRecord.color.set(textureImageData.data[imgTextureIndex + 0] / 255,
+			textureImageData.data[imgTextureIndex + 1] / 255,
+			textureImageData.data[imgTextureIndex + 2] / 255);
+		// remove gamma from texture image (map color into linear color space)
+		HitRecord.color.x *= HitRecord.color.x;
+		HitRecord.color.y *= HitRecord.color.y;
+		HitRecord.color.z *= HitRecord.color.z; */
+		HitRecord.normal.copy(normal);
 	}
 
-	/* testT = intersectSphere(coatSphereRadius, coatSpherePosition, rayOrigin, rayDirection);
+	testT = intersectHyperboloid(hyperboloidInnerRadius, hyperboloidHeightRadius, hyperboloidPosition, rayOrigin, rayDirection, normal);
+	if (testT < HitRecord.nearestT)
+	{
+		HitRecord.nearestT = testT;
+		HitRecord.type = CLEARCOAT_DIFFUSE;
+		//HitRecord.color.set(0.01, 0.7, 0.01);
+		hitPoint.getPointAlongRay(rayOrigin, rayDirection, testT);
+		calcCylinderUV(hitPoint, hyperboloidHeightRadius, hyperboloidPosition);
+		textureScaleU = 10;
+		textureScaleV = 5;
+		U = Math.floor(U * textureScaleU);
+		V = Math.floor(V * textureScaleV);
+		if ((U + V) % 2 == 0)
+			HitRecord.color.set(0.8, 0.8, 0.8);
+		else
+			HitRecord.color.set(0.5, 0, 0);
+
+		/* textureScaleU = 1;
+		textureScaleV = 0.5;
+		U = Math.floor(U * textureScaleU * img.width) % img.width;
+		V = Math.floor(V * textureScaleV * img.height) % img.height;
+
+		imgTextureIndex = (V * img.width + U) * 4;
+		
+		HitRecord.color.set(textureImageData.data[imgTextureIndex + 0] / 255,
+			textureImageData.data[imgTextureIndex + 1] / 255,
+			textureImageData.data[imgTextureIndex + 2] / 255);
+		// remove gamma from texture image (map color into linear color space)
+		HitRecord.color.x *= HitRecord.color.x;
+		HitRecord.color.y *= HitRecord.color.y;
+		HitRecord.color.z *= HitRecord.color.z; */
+		HitRecord.normal.copy(normal);
+	}
+
+	testT = intersectHyperbolicParaboloid(hyperbolicParaboloidRadius, hyperbolicParaboloidPosition, rayOrigin, rayDirection, normal);
+	if (testT < HitRecord.nearestT)
+	{
+		HitRecord.nearestT = testT;
+		HitRecord.type = CLEARCOAT_DIFFUSE;
+		//HitRecord.color.set(0.01, 0.7, 0.01);
+		hitPoint.getPointAlongRay(rayOrigin, rayDirection, testT);
+		calcRectangleUV(hitPoint, hyperbolicParaboloidRadius, hyperbolicParaboloidRadius, hyperbolicParaboloidPosition);
+		U = Math.floor(U * 8);
+		V = Math.floor(V * 8);
+		if ((U + V) % 2 == 0)
+			HitRecord.color.set(0.8, 0.8, 0.8);
+		else
+			HitRecord.color.set(0.5, 0, 0);
+
+		/* textureScaleU = 1;
+		textureScaleV = 0.5;
+		U = Math.floor(U * textureScaleU * img.width) % img.width;
+		V = Math.floor(V * textureScaleV * img.height) % img.height;
+
+		imgTextureIndex = (V * img.width + U) * 4;
+		
+		HitRecord.color.set(textureImageData.data[imgTextureIndex + 0] / 255,
+			textureImageData.data[imgTextureIndex + 1] / 255,
+			textureImageData.data[imgTextureIndex + 2] / 255);
+		// remove gamma from texture image (map color into linear color space)
+		HitRecord.color.x *= HitRecord.color.x;
+		HitRecord.color.y *= HitRecord.color.y;
+		HitRecord.color.z *= HitRecord.color.z; */
+		HitRecord.normal.copy(normal);
+	}
+
+	/* testT = intersectSphere(coatSphereRadius, coatSpherePosition, rayOrigin, rayDirection, HitRecord.normal);
 	if (testT < HitRecord.nearestT)
 	{
 		HitRecord.nearestT = testT;
 		HitRecord.type = CLEARCOAT_DIFFUSE;
 		HitRecord.color.set(0.01, 0.01, 0.8);
-		tempVec.copy(rayDirection);
-		tempVec.multiplyScalar(HitRecord.nearestT);
-		hitPoint.copy(rayOrigin);
-		hitPoint.add(tempVec);
-		HitRecord.normal.copy(hitPoint);
-		HitRecord.normal.subtract(coatSpherePosition);
+		hitPoint.getPointAlongRay(rayOrigin, rayDirection, testT);
 	} */
 
 	rayObjOrigin.copy(rayOrigin);
@@ -365,18 +542,13 @@ function intersectScene()
 		HitRecord.normal.transformNormalByMatInverse(coatSphere_InverseMatrix);
 	}
 
-	testT = intersectSphere(glassSphereRadius, glassSpherePosition, rayOrigin, rayDirection);
+	testT = intersectSphere(glassSphereRadius, glassSpherePosition, rayOrigin, rayDirection, normal);
 	if (testT < HitRecord.nearestT)
 	{
 		HitRecord.nearestT = testT;
 		HitRecord.type = TRANSPARENT;
 		HitRecord.color.set(1.0, 1.0, 1.0);
-		tempVec.copy(rayDirection);
-		tempVec.multiplyScalar(HitRecord.nearestT);
-		hitPoint.copy(rayOrigin);
-		hitPoint.add(tempVec);
-		HitRecord.normal.copy(hitPoint);
-		HitRecord.normal.subtract(glassSpherePosition);
+		HitRecord.normal.copy(normal);
 	}
 
 	return HitRecord.nearestT;
@@ -394,7 +566,7 @@ let fresnelReflectance = 0;
 let fresnelTransparency = 0;
 let whiteColor = new Vec3(1, 1, 1);
 let eta = 1;
-let N = new Vec3();
+let Nl = new Vec3();
 
 function rayTrace()
 {
@@ -469,24 +641,21 @@ function rayTrace()
 
 		// useful data
 		HitRecord.normal.normalize();
-		N.copy(HitRecord.normal);
-		if (rayDirection.dot(N) > 0)
+		Nl.copy(HitRecord.normal);
+		if (rayDirection.dot(Nl) > 0)
 		{
-			N.multiplyScalar(-1);
+			Nl.multiplyScalar(-1);
 		}
-		HitRecord.intersectionPoint.copy(rayOrigin);
-		tempVec.copy(rayDirection);
-		tempVec.multiplyScalar(HitRecord.nearestT);
-		HitRecord.intersectionPoint.add(tempVec);
 
+		HitRecord.intersectionPoint.getPointAlongRay(rayOrigin, rayDirection, HitRecord.nearestT);
+		
 
 		if (HitRecord.type == DIFFUSE)
 		{
-			fresnelReflectance = calcFresnelEffect(0.04, rayDirection, HitRecord.normal);
+			fresnelReflectance = calcFresnelEffect(0.04, rayDirection, Nl);
 			fresnelTransparency = 1 - fresnelReflectance;
 
-			whiteColor.set(1, 1, 1);
-			HitRecord.color.mix(HitRecord.color, whiteColor, fresnelReflectance * fresnelReflectance);
+			HitRecord.color.mix(HitRecord.color, whiteColor, fresnelReflectance * fresnelReflectance * fresnelReflectance);
 			rayColorMask.multiplyColor(HitRecord.color);
 
 			diffuseFalloff = HitRecord.normal.dot(directionToSun);
@@ -514,11 +683,10 @@ function rayTrace()
 		}
 		else if (HitRecord.type == METAL)
 		{
-			fresnelReflectance = calcFresnelEffect(0.1, rayDirection, HitRecord.normal);
-			fresnelTransparency = 1 - fresnelReflectance;
+			// fresnelReflectance = calcFresnelEffect(0.1, rayDirection, Nl);
+			// fresnelTransparency = 1 - fresnelReflectance;
 
-			whiteColor.set(1, 1, 1);
-			HitRecord.color.mix(HitRecord.color, whiteColor, fresnelReflectance * fresnelReflectance);
+			// HitRecord.color.mix(HitRecord.color, whiteColor, fresnelReflectance);
 			rayColorMask.multiplyColor(HitRecord.color);
 
 			// evaluate Blinn-Phong reflection model at this surface point
@@ -529,7 +697,7 @@ function rayTrace()
 			specularColor.multiplyColor(sunColor);
 			specularColor.multiplyScalar(specularFalloff);
 
-			rayDirection.reflect(HitRecord.normal);
+			rayDirection.reflect(Nl);
 			rayOrigin.copy(HitRecord.intersectionPoint);
 			HitRecord.normal.multiplyScalar(0.0001);
 			rayOrigin.add(HitRecord.normal);
@@ -541,7 +709,7 @@ function rayTrace()
 		}
 		else if (HitRecord.type == CLEARCOAT_DIFFUSE)
 		{
-			fresnelReflectance = calcFresnelReflectance(rayDirection, HitRecord.normal, 1.0, 1.5);
+			fresnelReflectance = calcFresnelReflectance(rayDirection, Nl, 1.0, 1.5);
 			fresnelTransparency = 1 - fresnelReflectance;
 
 			if (bounces == 0 || previousIntersectionWasMetal)
@@ -549,9 +717,9 @@ function rayTrace()
 				reflectionRayColorMask.copy(rayColorMask);
 				reflectionRayColorMask.multiplyScalar(fresnelReflectance);
 				reflectionRayDirection.copy(rayDirection);
-				reflectionRayDirection.reflect(HitRecord.normal);
+				reflectionRayDirection.reflect(Nl);
 				// evaluate Blinn-Phong reflection model at this surface point
-				specularFalloff = calcSpecularReflectance(rayDirection, directionToSun, N, 1000);
+				specularFalloff = calcSpecularReflectance(rayDirection, directionToSun, Nl, 1000);
 				// specular contribution
 				specularColor.set(1, 1, 1);
 				specularColor.multiplyColor(sunColor);
@@ -589,7 +757,7 @@ function rayTrace()
 		}
 		else if (HitRecord.type == TRANSPARENT)
 		{
-			fresnelReflectance = calcFresnelReflectance(rayDirection, HitRecord.normal, 1.0, 1.5);
+			fresnelReflectance = calcFresnelReflectance(rayDirection, Nl, 1.0, 1.5);
 			fresnelTransparency = 1 - fresnelReflectance;
 
 			if (bounces == 0 || previousIntersectionWasMetal)
@@ -597,9 +765,9 @@ function rayTrace()
 				reflectionRayColorMask.copy(rayColorMask);
 				reflectionRayColorMask.multiplyScalar(fresnelReflectance);
 				reflectionRayDirection.copy(rayDirection);
-				reflectionRayDirection.reflect(HitRecord.normal);
+				reflectionRayDirection.reflect(Nl);
 				// evaluate Blinn-Phong reflection model at this surface point
-				specularFalloff = calcSpecularReflectance(rayDirection, directionToSun, N, 1000);
+				specularFalloff = calcSpecularReflectance(rayDirection, directionToSun, Nl, 1000);
 				// specular contribution
 				specularColor.set(1, 1, 1);
 				specularColor.multiplyColor(sunColor);
@@ -619,10 +787,10 @@ function rayTrace()
 			{
 				eta = 1.5 / 1.0;
 			}
-			rayDirection.refract(N, eta);
+			rayDirection.refract(Nl, eta);
 			rayOrigin.copy(HitRecord.intersectionPoint);
-			N.multiplyScalar(0.0001);
-			rayOrigin.add(N); // 'add' here, for reflectionRayOrigin below
+			Nl.multiplyScalar(0.0001);
+			rayOrigin.add(Nl); // 'add' here, for reflectionRayOrigin below
 
 			if (bounces == 0 || previousIntersectionWasMetal)
 			{
@@ -632,7 +800,7 @@ function rayTrace()
 			}
 
 			rayOrigin.copy(HitRecord.intersectionPoint);
-			rayOrigin.subtract(N); // now 'subtract', to go through material
+			rayOrigin.subtract(Nl); // now 'subtract', to go through material
 			isShadowRay = false;
 			continue;
 		}
@@ -668,22 +836,12 @@ function draw()
 		{
 			tentFilterOffsetX = tentFilter(Math.random());
 			tentFilterOffsetY = tentFilter(Math.random());
-			canvasX = (column + tentFilterOffsetX) / canvas.width;
-			canvasY = (row + tentFilterOffsetY) / canvas.height;
+			canvasX = (column + tentFilterOffsetX + 0.5) / (canvas.width - 1);
+			canvasY = (row + tentFilterOffsetY + 0.5) / (canvas.height - 1);
 
 			canvasX = (canvasX * 2) - 1;
 			canvasY = (canvasY * 2) - 1;
 			canvasY *= -1;
-
-
-			/* canvasPositionOffset.set(canvasX * uLen, canvasY * vLen, canvasOffsetZFromCamera);
-			pixelPosition.copy(cameraPosition);
-			pixelPosition.add(canvasPositionOffset);
-
-			rayOrigin.copy(cameraPosition);
-			rayDirection.copy(pixelPosition);
-			rayDirection.subtract(cameraPosition);
-			rayDirection.normalize(); */
 
 
 			rayOrigin.copy(cameraPosition);
@@ -719,9 +877,9 @@ function draw()
 			inverseColor.set(1 / colorPlusOne.x, 1 / colorPlusOne.y, 1 / colorPlusOne.z);
 			pixelColor.multiplyColor(inverseColor);
 
-			// do gamma correction
-			pixelColor.set(Math.pow(pixelColor.x, 0.4545), Math.pow(pixelColor.y, 0.4545), Math.pow(pixelColor.z, 0.4545));
-			//pixelColor.set(Math.sqrt(pixelColor.x), Math.sqrt(pixelColor.y), Math.sqrt(pixelColor.z));
+			// apply gamma correction (map from linear color space into gamma color space for device display)
+			//pixelColor.set(Math.pow(pixelColor.x, 0.4545), Math.pow(pixelColor.y, 0.4545), Math.pow(pixelColor.z, 0.4545));
+			pixelColor.set(Math.sqrt(pixelColor.x), Math.sqrt(pixelColor.y), Math.sqrt(pixelColor.z));
 
 			pixelColor.multiplyScalar(255);
 			pixelColor.set(Math.floor(pixelColor.x), Math.floor(pixelColor.y), Math.floor(pixelColor.z));
@@ -776,7 +934,10 @@ function animate()
 
 const img = new Image();
 img.crossOrigin = "anonymous";
-img.src = "images/uvgrid1.png";
+img.src = //"images/uvgrid1.png";
+	  //"images/Earth_2048.jpg";
+	  "images/uvgrid0.png";
+	  //"images/BrickWall512x512.jpg";
 
 let offscreenCanvas = document.createElement("canvas");
 let offscreenContext = offscreenCanvas.getContext("2d");
