@@ -13,7 +13,7 @@ let startTime = 0;
 let endTime = 0;
 let renderTime = 0;
 
-const MAX_SAMPLE_COUNT = 1;
+const MAX_SAMPLE_COUNT = 20;
 let sampleCount = 0;
 
 let aspectRatio = 1;
