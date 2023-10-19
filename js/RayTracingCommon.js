@@ -1,3 +1,7 @@
+let ONE_OVER_PI = 1 / Math.PI;
+let ONE_OVER_TWO_PI = 1 / (Math.PI * 2);
+
+
 function Vec3(x = 0, y = 0, z = 0)
 {
 	this.x = x;
@@ -86,6 +90,14 @@ Vec3.prototype.normalize = function ()
 	this.z *= oneOverMagnitude;
 };
 
+Vec3.prototype.getPointAlongRay = function(rayO, rayD, t)
+{
+	this.x = rayO.x + (t * rayD.x);
+	this.y = rayO.y + (t * rayD.y);
+	this.z = rayO.z + (t * rayD.z);
+	return this;
+}; 
+
 let IdotN = 0;
 
 Vec3.prototype.reflect = function (surfaceNormal)
@@ -104,7 +116,7 @@ Vec3.prototype.reflect = function (surfaceNormal)
 
 
 
-let k = 0.0;
+let k = 0;
 
 Vec3.prototype.refract = function (surfaceNormal, eta)
 {
@@ -476,12 +488,7 @@ let cosTheta = 0;
 function calcFresnelEffect(r0, rayDir, normal)
 {
 	r0 *= r0;
-	halfDir.copy(rayDir);
-	halfDir.x *= -1;
-	halfDir.y *= -1;
-	halfDir.z *= -1;
-
-	cosTheta = 1 - Math.max(0, halfDir.dot(normal));
+	cosTheta = 1 - Math.max(0, -rayDir.dot(normal));
 	return (r0 + ((1 - r0) * cosTheta * cosTheta * cosTheta * cosTheta * cosTheta));
 }
 
@@ -533,15 +540,65 @@ function intersectRectangle(rectangleOrigin, rectangleNormal, radiusU, radiusV, 
 
 	t = pOrO.dot(rectangleNormal) / denom;
 
-	tempVec.copy(rayD);
-	tempVec.multiplyScalar(t);
-	hitPoint.copy(rayO);
-	hitPoint.add(tempVec);
+	hitPoint.getPointAlongRay(rayO, rayD, t);
 
 	if (t > 0 && Math.abs(rectangleOrigin.x - hitPoint.x) < radiusU &&
 		Math.abs(rectangleOrigin.z - hitPoint.z) < radiusV)
 	{
 		return t;
+	}
+
+	return Infinity;
+}
+
+let inverseDir = new Vec3();
+let near = new Vec3();
+let far = new Vec3();
+let tmin = new Vec3();
+let tmax = new Vec3();
+
+function intersectBox(minCorner, maxCorner, rayO, rayD, normal)
+{
+	inverseDir.set(1 / rayD.x, 1 / rayD.y, 1 / rayD.z);
+	near.copy(minCorner);
+	near.subtract(rayO);
+	near.multiplyColor(inverseDir);
+	far.copy(maxCorner);
+	far.subtract(rayO);
+	far.multiplyColor(inverseDir);
+	tmin.set(Math.min(near.x, far.x), Math.min(near.y, far.y), Math.min(near.z, far.z));
+	tmax.set(Math.max(near.x, far.x), Math.max(near.y, far.y), Math.max(near.z, far.z));
+	t0 = Math.max( Math.max(tmin.x, tmin.y), tmin.z);
+	t1 = Math.min( Math.min(tmax.x, tmax.y), tmax.z);
+	if (t0 > t1) 
+		return Infinity;
+	let eps = 0.00001;
+
+	if (t0 > 0.0) // if we are outside the box
+	{
+		hitPoint.getPointAlongRay(rayO, rayD, t0);
+		normal.set(1,0,0);
+		     if (Math.abs(hitPoint.x - maxCorner.x) < eps) normal.set(1, 0, 0);
+		else if (Math.abs(hitPoint.y - maxCorner.y) < eps) normal.set(0, 1, 0);
+		else if (Math.abs(hitPoint.z - maxCorner.z) < eps) normal.set(0, 0, 1);
+		else if (Math.abs(hitPoint.x - minCorner.x) < eps) normal.set(-1, 0, 0);
+		else if (Math.abs(hitPoint.y - minCorner.y) < eps) normal.set(0, -1, 0);
+		else if (Math.abs(hitPoint.z - minCorner.z) < eps) normal.set(0, 0, -1);
+		
+		return t0;
+	}
+	if (t1 > 0.0) // if we are inside the box
+	{
+		hitPoint.getPointAlongRay(rayO, rayD, t1);
+		normal.set(1,0,0);
+		     if (Math.abs(hitPoint.x - maxCorner.x) < eps) normal.set(1, 0, 0);
+		else if (Math.abs(hitPoint.y - maxCorner.y) < eps) normal.set(0, 1, 0);
+		else if (Math.abs(hitPoint.z - maxCorner.z) < eps) normal.set(0, 0, 1);
+		else if (Math.abs(hitPoint.x - minCorner.x) < eps) normal.set(-1, 0, 0);
+		else if (Math.abs(hitPoint.y - minCorner.y) < eps) normal.set(0, -1, 0);
+		else if (Math.abs(hitPoint.z - minCorner.z) < eps) normal.set(0, 0, -1);
+
+		return t1;
 	}
 
 	return Infinity;
@@ -572,14 +629,12 @@ let a = 0;
 let b = 0;
 let c = 0;
 
-function intersectSphere(radius, spherePosition, rayO, rayD)
+function intersectSphere(radius, position, rayO, rayD, normal)
 {
-	t0 = 0;
-	t1 = 0;
-
 	L.copy(rayO);
-	L.subtract(spherePosition);
-
+	L.subtract(position);
+	// Sphere implicit equation
+	// X^2 + Y^2 + Z^2 - r^2 = 0
 	a = rayD.dot(rayD);
 	b = 2 * rayD.dot(L);
 	c = L.dot(L) - (radius * radius);
@@ -589,25 +644,30 @@ function intersectSphere(radius, spherePosition, rayO, rayD)
 		return Infinity;
 	}
 
-	t = Infinity;
-	if (t1 > 0)
-	{
-		t = t1;
-	}
-
 	if (t0 > 0)
 	{
-		t = t0;
+		normal.getPointAlongRay(rayO, rayD, t0);
+		normal.subtract(position);
+		// if (normal.dot(rayD) > 0)
+		// 	normal.multiplyScalar(-1);
+		return t0;
+	}
+	if (t1 > 0)
+	{
+		normal.getPointAlongRay(rayO, rayD, t1);
+		normal.subtract(position);
+		// if (normal.dot(rayD) > 0)
+		// 	normal.multiplyScalar(-1);
+		return t1;
 	}
 
-	return t;
+	return Infinity;
 }
 
 function intersectUnitSphere(rayO, rayD, normal)
 {
-	t0 = 0;
-	t1 = 0;
-
+	// Unit Sphere implicit equation
+	// X^2 + Y^2 + Z^2 - 1 = 0
 	a = rayD.dot(rayD);
 	b = 2 * rayD.dot(rayO);
 	c = rayO.dot(rayO) - 1;
@@ -621,19 +681,219 @@ function intersectUnitSphere(rayO, rayD, normal)
 	
 	if (t0 > 0)
 	{
-		t = t0;
+		normal.getPointAlongRay(rayO, rayD, t0);
+		return t0;
 	}
-	else if (t1 > 0)
+	if (t1 > 0)
 	{
-		t = t1;
+		normal.getPointAlongRay(rayO, rayD, t1);
+		return t1;
 	}
 
-	normal.copy(rayO);
-	tempVec.copy(rayD);
-	tempVec.multiplyScalar(t);
-	normal.add(tempVec);
+	return Infinity;
+}
 
-	return t;
+function intersectCylinder(widthRadius, heightRadius, position, rayO, rayD, normal)
+{
+	L.copy(rayO);
+	L.subtract(position);
+	// Cylinder implicit equation
+	// X^2 + Z^2 - r^2 = 0
+	a = (rayD.x * rayD.x) + (rayD.z * rayD.z);
+	b = 2 * ((rayD.x * L.x) + (rayD.z * L.z));
+	c = (L.x * L.x) + (L.z * L.z) - (widthRadius * widthRadius);
+
+	if (solveQuadratic(a, b, c) == false)
+	{
+		return Infinity;
+	}
+
+	hitPoint.getPointAlongRay(rayO, rayD, t0);
+	if (t0 > 0 && hitPoint.y > (position.y - heightRadius) && hitPoint.y < (position.y + heightRadius))
+	{
+		hitPoint.subtract(position);
+		normal.set(hitPoint.x, 0, hitPoint.z);
+		if (normal.dot(rayD) > 0)
+			normal.multiplyScalar(-1);
+		return t0;
+	}
+
+	hitPoint.getPointAlongRay(rayO, rayD, t1);
+	if (t1 > 0 && hitPoint.y > (position.y - heightRadius) && hitPoint.y < (position.y + heightRadius))
+	{
+		hitPoint.subtract(position);
+		normal.set(hitPoint.x, 0, hitPoint.z);
+		if (normal.dot(rayD) > 0)
+			normal.multiplyScalar(-1);
+		return t1;
+	}
+
+	return Infinity;
+}
+
+function intersectCone(heightRadius, position, rayO, rayD, normal)
+{
+	L.copy(rayO);
+	L.subtract(position);
+	L.y -= heightRadius;// this chops off the top half of the standard double-cone shape
+	k = 3;// this will shrink the X and Z components of the cone, so that its opening has unit radius of 1
+	// Cone implicit equation
+	// X^2 - Y^2 + Z^2 = 0
+	a = k * (rayD.x * rayD.x) - (rayD.y * rayD.y) + k * (rayD.z * rayD.z);
+	b = 2 * (k * (rayD.x * L.x) - (rayD.y * L.y) + k * (rayD.z * L.z));
+	c = k * (L.x * L.x) - (L.y * L.y) + k * (L.z * L.z);
+
+	if (solveQuadratic(a, b, c) == false)
+	{
+		return Infinity;
+	}
+
+	hitPoint.getPointAlongRay(rayO, rayD, t0);
+	if (t0 > 0 && hitPoint.y > (position.y - heightRadius) && hitPoint.y < (position.y + heightRadius))
+	{
+		hitPoint.subtract(position);
+		hitPoint.y -= heightRadius;
+		normal.set(k * hitPoint.x, -hitPoint.y, k * hitPoint.z);
+		if (normal.dot(rayD) > 0)
+			normal.multiplyScalar(-1);
+		return t0;
+	}
+
+	hitPoint.getPointAlongRay(rayO, rayD, t1);
+	if (t1 > 0 && hitPoint.y > (position.y - heightRadius) && hitPoint.y < (position.y + heightRadius))
+	{
+		hitPoint.subtract(position);
+		hitPoint.y -= heightRadius;
+		normal.set(k * hitPoint.x, -hitPoint.y, k * hitPoint.z);
+		if (normal.dot(rayD) > 0)
+			normal.multiplyScalar(-1);
+		return t1;
+	}
+
+	return Infinity;
+}
+
+function intersectParaboloid(heightRadius, position, rayO, rayD, normal)
+{
+	L.copy(rayO);
+	L.subtract(position);
+	L.y += heightRadius;// this moves the paraboloid down so that its 
+	// position(origin) is at its own center of gravity (rather than at the bottom apex)
+	k = 1.5;// this will shrink the X and Z components of the paraboloid, so that its opening has unit radius of 1
+	// Paraboloid implicit equation
+	// X^2 - Y + Z^2 = 0
+	a = k * (rayD.x * rayD.x) + k * (rayD.z * rayD.z);
+	b = 2 * (k * (rayD.x * L.x) + k * (rayD.z * L.z)) - rayD.y;
+	c = k * (L.x * L.x) - L.y + k * (L.z * L.z);
+
+	if (solveQuadratic(a, b, c) == false)
+	{
+		return Infinity;
+	}
+	
+	hitPoint.getPointAlongRay(rayO, rayD, t0);
+	if (t0 > 0 && hitPoint.y < (position.y + heightRadius))
+	{
+		hitPoint.subtract(position);
+		normal.set(k * 2 * hitPoint.x, -1, k * 2 * hitPoint.z);
+		if (normal.dot(rayD) > 0)
+			normal.multiplyScalar(-1);
+		return t0;
+	}
+
+	hitPoint.getPointAlongRay(rayO, rayD, t1);
+	if (t1 > 0 && hitPoint.y < (position.y + heightRadius))
+	{
+		hitPoint.subtract(position);
+		normal.set(k * 2 * hitPoint.x, -1, k * 2 * hitPoint.z);
+		if (normal.dot(rayD) > 0)
+			normal.multiplyScalar(-1);
+		return t1;
+	}
+
+	return Infinity;
+}
+
+function intersectHyperboloid(innerRadius, heightRadius, position, rayO, rayD, normal)
+{
+	L.copy(rayO);
+	L.subtract(position);
+	// Hyperboloid (1 sheet) implicit equation
+	// X^2 - Y^2 + Z^2 - r^2 = 0
+	// Hyperboloid (2 sheets) implicit equation
+	// X^2 - Y^2 + Z^2 + r^2 = 0
+	a = (rayD.x * rayD.x) - (rayD.y * rayD.y) + (rayD.z * rayD.z);
+	b = 2 * ((rayD.x * L.x) - (rayD.y * L.y) + (rayD.z * L.z));
+	c = (L.x * L.x) - (L.y * L.y) + (L.z * L.z) - (innerRadius * innerRadius); // (1 sheet)
+	//c = (L.x * L.x) - (L.y * L.y) + (L.z * L.z) + (innerRadius * innerRadius); // (2 sheets)
+
+	if (solveQuadratic(a, b, c) == false)
+	{
+		return Infinity;
+	}
+
+	hitPoint.getPointAlongRay(rayO, rayD, t0);
+	if (t0 > 0 && hitPoint.y > (position.y - heightRadius) && hitPoint.y < (position.y + heightRadius))
+	{
+		hitPoint.subtract(position);
+		normal.set(hitPoint.x, -hitPoint.y, hitPoint.z);
+		if (normal.dot(rayD) > 0)
+			normal.multiplyScalar(-1);
+		return t0;
+	}
+
+	hitPoint.getPointAlongRay(rayO, rayD, t1);
+	if (t1 > 0 && hitPoint.y > (position.y - heightRadius) && hitPoint.y < (position.y + heightRadius))
+	{
+		hitPoint.subtract(position);
+		normal.set(hitPoint.x, -hitPoint.y, hitPoint.z);
+		if (normal.dot(rayD) > 0)
+			normal.multiplyScalar(-1);
+		return t1;
+	}
+
+	return Infinity;
+}
+
+function intersectHyperbolicParaboloid(radius, position, rayO, rayD, normal)
+{
+	L.copy(rayO);
+	L.subtract(position);
+	k = 1 / radius;// this scales up the unit HyperbolicParaboloid(radius=1) by the supplied radius
+	// Hyperbolic Paraboloid implicit equation
+	// X^2 - Y - Z^2 = 0
+	a = k * ((rayD.x * rayD.x) - (rayD.z * rayD.z));
+	b = k * 2 * ((rayD.x * L.x) - (rayD.z * L.z)) - rayD.y;
+	c = k * ((L.x * L.x) - (L.z * L.z)) - L.y;
+
+	if (solveQuadratic(a, b, c) == false)
+	{
+		return Infinity;
+	}
+	
+	hitPoint.getPointAlongRay(rayO, rayD, t0);
+	if (t0 > 0 && hitPoint.x < (position.x + radius) && hitPoint.x > (position.x - radius) &&
+		hitPoint.z < (position.z + radius) && hitPoint.z > (position.z - radius))
+	{
+		hitPoint.subtract(position);
+		normal.set(2 * hitPoint.x, -1 * radius, -2 * hitPoint.z);
+		if (normal.dot(rayD) > 0)
+			normal.multiplyScalar(-1);
+		return t0;
+	}
+
+	hitPoint.getPointAlongRay(rayO, rayD, t1);
+	if (t1 > 0 && hitPoint.x < (position.x + radius) && hitPoint.x > (position.x - radius) &&
+		hitPoint.z < (position.z + radius) && hitPoint.z > (position.z - radius))
+	{
+		hitPoint.subtract(position);
+		normal.set(2 * hitPoint.x, -1 * radius, -2 * hitPoint.z);
+		if (normal.dot(rayD) > 0)
+			normal.multiplyScalar(-1);
+		return t1;
+	}
+
+	return Infinity;
 }
 
 let theta = 0;
@@ -646,22 +906,41 @@ function calcSphereUV(pointOnSphere, sphereRadius, spherePosition)
 	normalizedPoint.subtract(spherePosition);
 	normalizedPoint.multiplyScalar(1 / sphereRadius);
 
-	theta = Math.atan2(normalizedPoint.x, normalizedPoint.z);
-	phi = Math.acos(normalizedPoint.y);
-	U = (theta / (2 * Math.PI)) + 0.5;
-	V = (phi / Math.PI);
+	phi = Math.atan2(-normalizedPoint.z, normalizedPoint.x);
+	theta = Math.acos(normalizedPoint.y);
+	U = phi * ONE_OVER_TWO_PI + 0.5;
+	V = theta * ONE_OVER_PI;
 }
 
 function calcRectangleUV(pointOnRectangle, rectRadiusU, rectRadiusV, rectPosition)
 {
-	tempVec.copy(pointOnRectangle);
-	tempVec.subtract(rectPosition);
-	tempVec.x /= (rectRadiusU * 2);
+	normalizedPoint.copy(pointOnRectangle);
+	normalizedPoint.subtract(rectPosition);
+	normalizedPoint.x /= (rectRadiusU * 2);
 	// use Z component instead of Y, because this rect is in the X-Z plane
-	tempVec.z /= (rectRadiusV * 2);
-	U = tempVec.x + 0.5;
-	V = tempVec.z + 0.5;
+	normalizedPoint.z /= (rectRadiusV * 2);
+	U = normalizedPoint.x + 0.5;
+	V = normalizedPoint.z + 0.5;
 }
+
+function calcCylinderUV(pointOnCylinder, cylinderHeightRadius, cylinderPosition)
+{
+	normalizedPoint.copy(pointOnCylinder);
+	normalizedPoint.subtract(cylinderPosition);
+	// must compute theta before normalizing the intersection point
+	theta = normalizedPoint.y / (cylinderHeightRadius * 2);
+	normalizedPoint.normalize();
+	phi = Math.atan2(-normalizedPoint.z, normalizedPoint.x);
+	U = phi * ONE_OVER_TWO_PI + 0.5;
+	V = -theta + 0.5; // -theta flips upside-down texture images
+}
+
+let hitPoint = new Vec3();
+let normal = new Vec3();
+let tempVec = new Vec3();
+let U = 0;
+let V = 0;
+let W = 0;
 
 const LIGHT = -1;
 const DIFFUSE = 0;
