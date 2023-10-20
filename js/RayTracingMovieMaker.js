@@ -162,8 +162,7 @@ let whiteSpherePosition = new Vec3(0, whiteSphereRadius, -10);
 
 
 let testT = Infinity;
-let hitPoint = new Vec3();
-let tempVec = new Vec3();
+
 
 
 function intersectScene()
@@ -172,7 +171,7 @@ function intersectScene()
 	HitRecord.nearestT = Infinity;
 	HitRecord.type = -100;
 
-	testT = intersectPlane(groundPlaneOrigin, groundPlaneNormal, rayOrigin, rayDirection);
+	testT = intersectRectangle(groundPlaneOrigin, groundPlaneNormal, 100, 100, rayOrigin, rayDirection);
 	if (testT < HitRecord.nearestT)
 	{
 		HitRecord.nearestT = testT;
@@ -189,18 +188,13 @@ function intersectScene()
 		HitRecord.normal.copy(groundPlaneNormal);
 	}
 
-	testT = intersectSphere(whiteSphereRadius, whiteSpherePosition, rayOrigin, rayDirection);
+	testT = intersectSphere(whiteSphereRadius, whiteSpherePosition, rayOrigin, rayDirection, normal);
 	if (testT < HitRecord.nearestT)
 	{
 		HitRecord.nearestT = testT;
 		HitRecord.type = METAL;
 		HitRecord.color.set(0.9, 0.9, 0.9);
-		tempVec.copy(rayDirection);
-		tempVec.multiplyScalar(HitRecord.nearestT);
-		hitPoint.copy(rayOrigin);
-		hitPoint.add(tempVec);
-		HitRecord.normal.copy(hitPoint);
-		HitRecord.normal.subtract(whiteSpherePosition);
+		HitRecord.normal.copy(normal);
 	}
 
 	return HitRecord.nearestT;
