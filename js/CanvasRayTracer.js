@@ -13,7 +13,7 @@ let startTime = 0;
 let endTime = 0;
 let renderTime = 0;
 
-const MAX_SAMPLE_COUNT = 20;
+const MAX_SAMPLE_COUNT = 15;
 let sampleCount = 0;
 
 let aspectRatio = 1;
@@ -29,112 +29,6 @@ let imageDataArray;
 let imageDataIndex = 0;
 
 
-
-window.addEventListener("resize", handleWindowResize)
-function handleWindowResize()
-{
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
-
-	aspectRatio = canvas.width / canvas.height;
-	
-	if (aspectRatio >= 1)
-	{
-		uLen = Math.tan(thetaFOV); // width scale
-		vLen = uLen; // height scale
-		uLen *= aspectRatio;
-	}
-	else
-	{
-		uLen = Math.tan(thetaFOV); // width scale
-		vLen = uLen; // height scale
-		vLen /= aspectRatio;
-	}
-	
- 
-	pixelsColorHistory = null;
-	pixelsColorHistory = new Float32Array(canvas.width * canvas.height * 3);
-
-	imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-	imageDataArray = imageData.data;
-
-	if (sampleCount == MAX_SAMPLE_COUNT)
-	{
-		sampleCount = 0; // reset sampleCount to start a fresh progressive render
-		animate(); // also need to restart requestAnimationFrame
-	}
-	else
-		sampleCount = 0; // reset sampleCount to start a fresh progressive render
-
-	// startTime = performance.now();
-	// draw();
-	// endTime = performance.now();
-	// renderTime = (endTime - startTime) * 0.001;
-
-	debugInfo.innerHTML = "canvasW: " + canvas.width + " canvasH: " + canvas.height + "<br>" +
-		"Total pixels: " + canvas.width * canvas.height;
-
-	userText.innerHTML = "render time: " + renderTime.toFixed(1) + " seconds";
-}
-
-/* function draw()
-{
-	// 1st pixel in middle of canvas
-	// context.fillStyle = "rgb(255,255,255)";
-	// context.fillRect(canvas.width / 2, canvas.height / 2, 1, 1);
-
-
-	// 'row' numbers start at the top of the webpage ( ,0)
-	// and go all the way down to the bottom of webpage ( ,canvas.height)
-	// As row increases, it moves down 1 row (1 pixel) on each loop iteration
-	for (let row = 0; row < canvas.height; row++)
-	{
-		// 'column' numbers start at the left side of webpage (0, ) 
-		// and go all the way to the right side of webpage (canvas.width, )
-		// As column increases, it moves right 1 column (1 pixel) on each loop iteration 
-		for (let column = 0; column < canvas.width; column++)
-		{
-			// make both canvasX & canvasY in the range of: 0 to 1
-			canvasX = column / (canvas.width - 1);
-			canvasY = row / (canvas.height - 1);
-
-			// put both pixelX & pixelY in the range of: -1 to +1
-			pixelX = 2 * canvasX - 1;
-			pixelY = 2 * canvasY - 1;
-			pixelY *= -1;
-
-			// put back in range: 0 to 1, for valid colors showing pixel coordinates
-			//pixelX = pixelX * 0.5 + 0.5;
-			//pixelY = pixelY * 0.5 + 0.5;
-
-			//r = canvasX * 255;
-			r = Math.random() * 256;
-			r = Math.floor(r);
-			
-			//g = canvasY * 255;
-			g = Math.random() * 256;
-			g = Math.floor(g);
-			
-			//b = canvasX * 255;
-			b = Math.random() * 256;
-			b = Math.floor(b);
-
-			context.fillStyle = "rgb(" + r + "," + g + "," + b + ")";
-			context.fillRect(column, row, 1, 1);
-
-			if (row == 0) // top row only
-			{
-				// runs every pixel column from left to right, but just for the very first row at the top of screen -
-				// starts at top left corner of webpage and goes all the way to right top corner, then stops (a horizontal line)
-				///console.log(" 1st row -> r:" + r + " g:" + g + " b:" + b);
-			}
-		}
-		// runs at the end of each row, at the very last pixel column on right side of webpage,
-		// starting at top right corner of screen, and continuing straight down to right bottom corner of screen (a vertical line)
-		///console.log("last column -> r:" + r + " g:" + g + " b:" + b);
-	}
-} */
-
 let skyColor = new Vec3(0.2, 0.7, 1.0);
 skyColor.multiplyScalar(2);
 let sunColor = new Vec3(1, 1, 1);
@@ -143,7 +37,7 @@ sunColor.multiplyScalar(sunPower);
 let directionToSun = new Vec3(-1, 0.7, 0.4);
 directionToSun.normalize();
 let diffuseFalloff = 0;
-let cameraPosition = new Vec3(0, 4, 5);
+let cameraPosition = new Vec3(0, 6, 5);
 let cameraTarget = new Vec3();
 let canvasOffsetZFromCamera = -1;
 let pixelPosition = new Vec3();
@@ -167,6 +61,45 @@ let groundRectangleNormal = new Vec3(0, 1, 0);
 groundRectangleNormal.normalize();
 let groundRectRadiusU = 100;
 let groundRectRadiusV = 100;
+let rectVectorU = new Vec3();
+let rectVectorV = new Vec3();
+if (Math.abs(groundRectangleNormal.y) < 0.9)
+{
+	rectVectorU.crossVectors(worldUp, groundRectangleNormal);
+	rectVectorU.normalize();
+	rectVectorV.crossVectors(rectVectorU, groundRectangleNormal);
+	rectVectorV.normalize();
+}
+else // else normal is pointing straight up, or almost straight up
+{
+	rectVectorU.crossVectors(groundRectangleNormal, worldForward);
+	rectVectorU.normalize();
+	rectVectorV.crossVectors(rectVectorU, groundRectangleNormal);
+	rectVectorV.normalize();
+}
+
+
+let diskOrigin = new Vec3(8.5, 1, -9);
+let diskNormal = new Vec3(-0.6, 1, 0.2);
+diskNormal.normalize();
+let diskRadius = 2;
+let diskVectorU = new Vec3();
+let diskVectorV = new Vec3();
+if (Math.abs(diskNormal.y) < 0.9)
+{
+	diskVectorU.crossVectors(worldUp, diskNormal);
+	diskVectorU.normalize();
+	diskVectorV.crossVectors(diskVectorU, diskNormal);
+	diskVectorV.normalize();
+}
+else // else normal is pointing straight up, or almost straight up
+{
+	diskVectorU.crossVectors(diskNormal, worldForward);
+	diskVectorU.normalize();
+	diskVectorV.crossVectors(diskVectorU, diskNormal);
+	diskVectorV.normalize();
+}
+
 let checkerboardColor1 = new Vec3(0.4, 0.4, 0.4);//Vec3(0.5, 0.01, 0.01);
 let checkerboardColor2 = new Vec3(0.05, 0.05, 0.05);//Vec3(0.8, 0.8, 0.01);
 
@@ -180,7 +113,7 @@ let metalSphereRadius = 3;
 let metalSpherePosition = new Vec3(-8, metalSphereRadius, -18);
 
 let cylinderWidthRadius = 2;
-let cylinderHeightRadius = 2;
+let cylinderHeightRadius = 2.5;
 let cylinderPosition = new Vec3(-7, cylinderHeightRadius, -17);
 
 let coneHeightRadius = 1;
@@ -244,6 +177,55 @@ let rayObjOrigin = new Vec3();
 let rayObjDirection = new Vec3();
 
 
+window.addEventListener("resize", handleWindowResize)
+function handleWindowResize()
+{
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+
+	aspectRatio = canvas.width / canvas.height;
+	
+	if (aspectRatio >= 1)
+	{
+		uLen = Math.tan(thetaFOV); // width scale
+		vLen = uLen; // height scale
+		uLen *= aspectRatio;
+	}
+	else
+	{
+		uLen = Math.tan(thetaFOV); // width scale
+		vLen = uLen; // height scale
+		vLen /= aspectRatio;
+	}
+	
+ 
+	pixelsColorHistory = null;
+	pixelsColorHistory = new Float32Array(canvas.width * canvas.height * 3);
+
+	imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+	imageDataArray = imageData.data;
+
+	if (sampleCount == MAX_SAMPLE_COUNT)
+	{
+		sampleCount = 0; // reset sampleCount to start a fresh progressive render
+		animate(); // also need to restart requestAnimationFrame
+	}
+	else
+		sampleCount = 0; // reset sampleCount to start a fresh progressive render
+
+	// startTime = performance.now();
+	// draw();
+	// endTime = performance.now();
+	// renderTime = (endTime - startTime) * 0.001;
+
+	debugInfo.innerHTML = "canvasW: " + canvas.width + " canvasH: " + canvas.height + "<br>" +
+		"Total pixels: " + canvas.width * canvas.height;
+
+	userText.innerHTML = "render time: " + renderTime.toFixed(1) + " seconds";
+}
+
+
+
 function intersectScene()
 {
 	// clear HitRecord.nearestT 
@@ -255,7 +237,6 @@ function intersectScene()
 	{
 		HitRecord.nearestT = testT;
 		HitRecord.type = CLEARCOAT_DIFFUSE;
-		hitPoint.getPointAlongRay(rayOrigin, rayDirection, testT);
 		/* U = Math.floor(hitPoint.x * 0.4);
 		V = Math.floor(hitPoint.z * 0.4);
 		if ((U + V) % 2 == 0)
@@ -265,7 +246,7 @@ function intersectScene()
 
 		textureScaleU = 10;
 		textureScaleV = 10;
-		calcRectangleUV(hitPoint, groundRectRadiusU, groundRectRadiusV, groundRectangleOrigin);
+		
 		U = Math.floor(U * textureScaleU * img.width) % img.width;
 		V = Math.floor(V * textureScaleV * img.height) % img.height;
 
@@ -279,6 +260,42 @@ function intersectScene()
 		HitRecord.color.z *= HitRecord.color.z;
 
 		HitRecord.normal.copy(groundRectangleNormal);
+	}
+
+	testT = intersectDisk(diskOrigin, diskNormal, diskRadius, rayOrigin, rayDirection);
+	if (testT < HitRecord.nearestT)
+	{
+		HitRecord.nearestT = testT;
+		HitRecord.type = CLEARCOAT_DIFFUSE;
+		//HitRecord.color.set(0, 0.5, 0);
+
+		textureScaleU = 10;
+		textureScaleV = 10;
+		
+		U = Math.floor(U * textureScaleU);
+		V = Math.floor(V * textureScaleV);
+
+		if ((Math.abs(U) + Math.abs(V)) % 2 == 0)
+			HitRecord.color.copy(checkerboardColor1);
+		else
+			HitRecord.color.copy(checkerboardColor2);
+
+		/* textureScaleU = 1;
+		textureScaleV = 1;
+		
+		U = Math.floor(U * textureScaleU * img.width) % img.width;
+		V = Math.floor(V * textureScaleV * img.height) % img.height;
+
+		imgTextureIndex = (V * img.width + U) * 4;
+		HitRecord.color.set(textureImageData.data[imgTextureIndex + 0] / 255,
+			textureImageData.data[imgTextureIndex + 1] / 255,
+			textureImageData.data[imgTextureIndex + 2] / 255);
+		// remove gamma from texture image (map color into linear color space)
+		HitRecord.color.x *= HitRecord.color.x;
+		HitRecord.color.y *= HitRecord.color.y;
+		HitRecord.color.z *= HitRecord.color.z; */
+
+		HitRecord.normal.copy(diskNormal);
 	}
 
 	testT = intersectBox(boxMinCorner, boxMaxCorner, rayOrigin, rayDirection, normal);
@@ -652,10 +669,10 @@ function rayTrace()
 
 		if (HitRecord.type == DIFFUSE)
 		{
-			fresnelReflectance = calcFresnelEffect(0.04, rayDirection, Nl);
-			fresnelTransparency = 1 - fresnelReflectance;
+			//fresnelReflectance = calcFresnelEffect(0.04, rayDirection, Nl);
+			//fresnelTransparency = 1 - fresnelReflectance;
 
-			HitRecord.color.mix(HitRecord.color, whiteColor, fresnelReflectance * fresnelReflectance * fresnelReflectance);
+			//HitRecord.color.mix(HitRecord.color, whiteColor, fresnelReflectance * fresnelReflectance * fresnelReflectance);
 			rayColorMask.multiplyColor(HitRecord.color);
 
 			diffuseFalloff = HitRecord.normal.dot(directionToSun);
