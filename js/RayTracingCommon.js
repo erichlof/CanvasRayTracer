@@ -9,49 +9,49 @@ function Vec3(x = 0, y = 0, z = 0)
 	this.z = z;
 }
 
-Vec3.prototype.set = function (x, y, z)
+Vec3.prototype.set = function(x, y, z)
 {
 	this.x = x;
 	this.y = y;
 	this.z = z;
 };
 
-Vec3.prototype.copy = function (otherVec)
+Vec3.prototype.copy = function(otherVec)
 {
 	this.x = otherVec.x;
 	this.y = otherVec.y;
 	this.z = otherVec.z;
 };
 
-Vec3.prototype.add = function (otherVec)
+Vec3.prototype.add = function(otherVec)
 {
 	this.x += otherVec.x;
 	this.y += otherVec.y;
 	this.z += otherVec.z;
 };
 
-Vec3.prototype.subtract = function (otherVec)
+Vec3.prototype.subtract = function(otherVec)
 {
 	this.x -= otherVec.x;
 	this.y -= otherVec.y;
 	this.z -= otherVec.z;
 };
 // useful for color vec3(r,g,b) multiplication by another color vec3(r,g,b)
-Vec3.prototype.multiplyColor = function (otherColorVec)
+Vec3.prototype.multiplyColor = function(otherColorVec)
 {
 	this.x *= otherColorVec.x;
 	this.y *= otherColorVec.y;
 	this.z *= otherColorVec.z;
 };
 
-Vec3.prototype.multiplyScalar = function (scalar)
+Vec3.prototype.multiplyScalar = function(scalar)
 {
 	this.x *= scalar;
 	this.y *= scalar;
 	this.z *= scalar;
 };
 
-Vec3.prototype.mix = function (vecA, vecB, amount)
+Vec3.prototype.mix = function(vecA, vecB, amount)
 {
 	amount = Math.max(0, amount); // clamp supplied amount to 0-1 range
 	amount = Math.min(1, amount); // clamp supplied amount to 0-1 range
@@ -60,19 +60,19 @@ Vec3.prototype.mix = function (vecA, vecB, amount)
 	this.z = (vecA.z * (1 - amount)) + (vecB.z * amount);
 };
 
-Vec3.prototype.dot = function (otherVec)
+Vec3.prototype.dot = function(otherVec)
 {
 	return (this.x * otherVec.x) + (this.y * otherVec.y) + (this.z * otherVec.z);
 };
 
-Vec3.prototype.crossVectors = function (vecA, vecB)
+Vec3.prototype.crossVectors = function(vecA, vecB)
 {
 	this.x = (vecA.y * vecB.z) - (vecA.z * vecB.y);
 	this.y = (vecA.z * vecB.x) - (vecA.x * vecB.z);
 	this.z = (vecA.x * vecB.y) - (vecA.y * vecB.x);
 };
 
-Vec3.prototype.magnitude = function ()
+Vec3.prototype.magnitude = function()
 {
 	return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
 };
@@ -80,7 +80,7 @@ Vec3.prototype.magnitude = function ()
 let magnitude = 0;
 let oneOverMagnitude = 0;
 
-Vec3.prototype.normalize = function ()
+Vec3.prototype.normalize = function()
 {
 	magnitude = this.magnitude();
 	oneOverMagnitude = 1 / magnitude;
@@ -90,17 +90,24 @@ Vec3.prototype.normalize = function ()
 	this.z *= oneOverMagnitude;
 };
 
+Vec3.prototype.distanceSquaredTo = function(otherVec)
+{
+	tempVec.copy(otherVec);
+	tempVec.subtract(this);
+	return (tempVec.x * tempVec.x) + (tempVec.y * tempVec.y) + (tempVec.z * tempVec.z);
+};
+
 Vec3.prototype.getPointAlongRay = function(rayO, rayD, t)
 {
 	this.x = rayO.x + (t * rayD.x);
 	this.y = rayO.y + (t * rayD.y);
 	this.z = rayO.z + (t * rayD.z);
 	return this;
-}; 
+};
 
 let IdotN = 0;
 
-Vec3.prototype.reflect = function (surfaceNormal)
+Vec3.prototype.reflect = function(surfaceNormal)
 {
 	/* GLSL reflect() implementation
 	R = I - (N * 2 * IdotN); 
@@ -118,7 +125,7 @@ Vec3.prototype.reflect = function (surfaceNormal)
 
 let k = 0;
 
-Vec3.prototype.refract = function (surfaceNormal, eta)
+Vec3.prototype.refract = function(surfaceNormal, eta)
 {
 	/* GLSL refract() implementation
 	k = eta * eta * (1.0 - IdotN * IdotN);  
@@ -136,8 +143,9 @@ Vec3.prototype.refract = function (surfaceNormal, eta)
 	this.subtract(tempVec);
 };
 
-
+let worldRight = new Vec3(1, 0, 0);
 let worldUp = new Vec3(0, 1, 0);
+let worldForward = new Vec3(0, 0, 1);
 let cameraRight = new Vec3();
 let cameraUp = new Vec3();
 let cameraForward = new Vec3();
@@ -166,7 +174,7 @@ function Matrix4()
 	this.elements = new Float32Array(16);
 }
 
-Matrix4.prototype.makeIdentity = function ()
+Matrix4.prototype.makeIdentity = function()
 {
 	const el = this.elements;
 	el[0] = 1; el[1] = 0; el[2] = 0; el[3] = 0;
@@ -184,7 +192,7 @@ Matrix4.prototype.makeIdentity = function ()
 	el[12] = m; el[13] = n; el[14] = o; el[15] = p;
 } */
 
-Matrix4.prototype.copy = function (otherMatrix)
+Matrix4.prototype.copy = function(otherMatrix)
 {
 	const el = this.elements;
 	const oel = otherMatrix.elements;
@@ -207,7 +215,7 @@ Matrix4.prototype.copy = function (otherMatrix)
 	el[15] = oel[15];
 }
 
-Matrix4.prototype.transpose = function ()
+Matrix4.prototype.transpose = function()
 {
 	const el = this.elements;
 
@@ -232,7 +240,7 @@ let tmp_20 = 0, tmp_21 = 0, tmp_22 = 0, tmp_23 = 0;
 let t_0 = 0, t_1 = 0, t_2 = 0, t_3 = 0;
 let d = 0;
 
-Matrix4.prototype.invert = function ()
+Matrix4.prototype.invert = function()
 {
 	const el = this.elements;
 
@@ -299,7 +307,7 @@ let b10 = 0, b11 = 0, b12 = 0, b13 = 0;
 let b20 = 0, b21 = 0, b22 = 0, b23 = 0;
 let b30 = 0, b31 = 0, b32 = 0, b33 = 0;
 
-Matrix4.prototype.multiplyMatrices = function (MatrixA, MatrixB)
+Matrix4.prototype.multiplyMatrices = function(MatrixA, MatrixB)
 {
 	const el = this.elements;
 	const ael = MatrixA.elements;
@@ -332,7 +340,7 @@ Matrix4.prototype.multiplyMatrices = function (MatrixA, MatrixB)
 	el[15] = a03 * b30 + a13 * b31 + a23 * b32 + a33 * b33;
 }
 
-Matrix4.prototype.makeTranslation = function (v3)
+Matrix4.prototype.makeTranslation = function(v3)
 {
 	const el = this.elements;
 	el[0] = 1; el[1] = 0; el[2] = 0; el[3] = 0;
@@ -342,7 +350,7 @@ Matrix4.prototype.makeTranslation = function (v3)
 }
 
 let cos, sin;
-Matrix4.prototype.makeRotationX = function (angleInRadians)
+Matrix4.prototype.makeRotationX = function(angleInRadians)
 {
 	const el = this.elements;
 	cos = Math.cos(angleInRadians);
@@ -354,7 +362,7 @@ Matrix4.prototype.makeRotationX = function (angleInRadians)
 	el[12] = 0; el[13] = 0; el[14] = 0; el[15] = 1;
 }
 
-Matrix4.prototype.makeRotationY = function (angleInRadians)
+Matrix4.prototype.makeRotationY = function(angleInRadians)
 {
 	const el = this.elements;
 	cos = Math.cos(angleInRadians);
@@ -366,7 +374,7 @@ Matrix4.prototype.makeRotationY = function (angleInRadians)
 	el[12] = 0; el[13] = 0; el[14] = 0; el[15] = 1;
 }
 
-Matrix4.prototype.makeRotationZ = function (angleInRadians)
+Matrix4.prototype.makeRotationZ = function(angleInRadians)
 {
 	const el = this.elements;
 	cos = Math.cos(angleInRadians);
@@ -378,7 +386,7 @@ Matrix4.prototype.makeRotationZ = function (angleInRadians)
 	el[12] = 0; el[13] = 0; el[14] = 0; el[15] = 1;
 }
 
-Matrix4.prototype.makeScaling = function (x, y, z)
+Matrix4.prototype.makeScaling = function(x, y, z)
 {
 	const el = this.elements;
 	el[0] = x; el[1] = 0; el[2] = 0; el[3] = 0;
@@ -387,7 +395,7 @@ Matrix4.prototype.makeScaling = function (x, y, z)
 	el[12] = 0; el[13] = 0; el[14] = 0; el[15] = 1;
 }
 
-Matrix4.prototype.makeShearing = function (XbyY, XbyZ, YbyX, YbyZ, ZbyX, ZbyY)
+Matrix4.prototype.makeShearing = function(XbyY, XbyZ, YbyX, YbyZ, ZbyX, ZbyY)
 {
 	const el = this.elements;
 	el[0] = 1; el[1] = YbyX; el[2] = ZbyX; el[3] = 0;
@@ -400,7 +408,7 @@ let xAxis = new Vec3();
 let yAxis = new Vec3();
 let zAxis = new Vec3();
 
-Matrix4.prototype.makeLookAt = function (v3_eyePos, v3_target)
+Matrix4.prototype.makeLookAt = function(v3_eyePos, v3_target)
 {
 	const el = this.elements;
 
@@ -423,7 +431,7 @@ Matrix4.prototype.makeLookAt = function (v3_eyePos, v3_target)
 
 let vx, vy, vz;
 
-Vec3.prototype.transformPoint = function (m4_Matrix)
+Vec3.prototype.transformPoint = function(m4_Matrix)
 {
 	const el = m4_Matrix.elements;
 	vx = this.x;
@@ -437,7 +445,7 @@ Vec3.prototype.transformPoint = function (m4_Matrix)
 	this.z = (vx * el[2] + vy * el[6] + vz * el[10] + el[14]) / d;
 }
 
-Vec3.prototype.transformDirection = function (m4_Matrix)
+Vec3.prototype.transformDirection = function(m4_Matrix)
 {
 	const el = m4_Matrix.elements;
 	vx = this.x;
@@ -449,7 +457,7 @@ Vec3.prototype.transformDirection = function (m4_Matrix)
 	this.z = vx * el[2] + vy * el[6] + vz * el[10];
 }
 
-Vec3.prototype.transformNormalByMatInverse = function (m4_MatInverse)
+Vec3.prototype.transformNormalByMatInverse = function(m4_MatInverse)
 {
 	const el = m4_MatInverse.elements;
 	vx = this.x;
@@ -497,8 +505,8 @@ let temp = 0.0;
 let cosi = 0.0;
 let sint2 = 0.0;
 let cost = 0.0;
-let Rs = 0.0;
-let Rp = 0.0;
+let R_parallel = 0.0;
+let R_perpendicular = 0.0;
 function calcFresnelReflectance(rayDirection, surfaceNormal, etai, etat)
 {
 	temp = etai;
@@ -516,10 +524,10 @@ function calcFresnelReflectance(rayDirection, surfaceNormal, etai, etat)
 
 	cost = Math.sqrt(1 - sint2);
 	cosi = Math.abs(cosi);
-	Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
-	Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+	R_parallel = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+	R_perpendicular = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
 
-	return ((Rs * Rs) + (Rp * Rp)) * 0.5;
+	return ((R_parallel * R_parallel) + (R_perpendicular * R_perpendicular)) * 0.5;
 }
 
 
@@ -541,13 +549,51 @@ function intersectRectangle(rectangleOrigin, rectangleNormal, radiusU, radiusV, 
 	t = pOrO.dot(rectangleNormal) / denom;
 
 	hitPoint.getPointAlongRay(rayO, rayD, t);
+	hitPoint.subtract(rectangleOrigin);
 
-	if (t > 0 && Math.abs(rectangleOrigin.x - hitPoint.x) < radiusU &&
-		Math.abs(rectangleOrigin.z - hitPoint.z) < radiusV)
+	if (t > 0)
 	{
-		return t;
+		U = hitPoint.dot(rectVectorU) / radiusU;
+		V = hitPoint.dot(rectVectorV) / radiusV;
+		
+		if (Math.abs(U) <= 1 && Math.abs(V) <= 1)
+		{
+			U = U * 0.5 + 0.5;
+			V = V * 0.5 + 0.5;
+			return t;
+		}	
 	}
 
+	return Infinity;
+}
+
+function intersectDisk(diskOrigin, diskNormal, radius, rayO, rayD)
+{
+	denom = rayD.dot(diskNormal);
+	// if (denom >= 0)
+	// {
+	// 	return Infinity;
+	// }
+	pOrO.copy(diskOrigin);
+	pOrO.subtract(rayO);
+
+	t = pOrO.dot(diskNormal) / denom;
+
+	hitPoint.getPointAlongRay(rayO, rayD, t);
+	hitPoint.subtract(diskOrigin);
+
+	if (t > 0)
+	{
+		U = hitPoint.dot(diskVectorU) / radius;
+		V = hitPoint.dot(diskVectorV) / radius;
+		if ((U * U) + (V * V) <= 1)
+		{
+			U = U * 0.5 + 0.5;
+			V = V * 0.5 + 0.5;
+			return t;
+		}	
+	}
+	
 	return Infinity;
 }
 
@@ -568,30 +614,30 @@ function intersectBox(minCorner, maxCorner, rayO, rayD, normal)
 	far.multiplyColor(inverseDir);
 	tmin.set(Math.min(near.x, far.x), Math.min(near.y, far.y), Math.min(near.z, far.z));
 	tmax.set(Math.max(near.x, far.x), Math.max(near.y, far.y), Math.max(near.z, far.z));
-	t0 = Math.max( Math.max(tmin.x, tmin.y), tmin.z);
-	t1 = Math.min( Math.min(tmax.x, tmax.y), tmax.z);
-	if (t0 > t1) 
+	t0 = Math.max(Math.max(tmin.x, tmin.y), tmin.z);
+	t1 = Math.min(Math.min(tmax.x, tmax.y), tmax.z);
+	if (t0 > t1)
 		return Infinity;
 	let eps = 0.00001;
 
 	if (t0 > 0.0) // if we are outside the box
 	{
 		hitPoint.getPointAlongRay(rayO, rayD, t0);
-		normal.set(1,0,0);
-		     if (Math.abs(hitPoint.x - maxCorner.x) < eps) normal.set(1, 0, 0);
+		normal.set(1, 0, 0);
+		if (Math.abs(hitPoint.x - maxCorner.x) < eps) normal.set(1, 0, 0);
 		else if (Math.abs(hitPoint.y - maxCorner.y) < eps) normal.set(0, 1, 0);
 		else if (Math.abs(hitPoint.z - maxCorner.z) < eps) normal.set(0, 0, 1);
 		else if (Math.abs(hitPoint.x - minCorner.x) < eps) normal.set(-1, 0, 0);
 		else if (Math.abs(hitPoint.y - minCorner.y) < eps) normal.set(0, -1, 0);
 		else if (Math.abs(hitPoint.z - minCorner.z) < eps) normal.set(0, 0, -1);
-		
+
 		return t0;
 	}
 	if (t1 > 0.0) // if we are inside the box
 	{
 		hitPoint.getPointAlongRay(rayO, rayD, t1);
-		normal.set(1,0,0);
-		     if (Math.abs(hitPoint.x - maxCorner.x) < eps) normal.set(1, 0, 0);
+		normal.set(1, 0, 0);
+		if (Math.abs(hitPoint.x - maxCorner.x) < eps) normal.set(1, 0, 0);
 		else if (Math.abs(hitPoint.y - maxCorner.y) < eps) normal.set(0, 1, 0);
 		else if (Math.abs(hitPoint.z - maxCorner.z) < eps) normal.set(0, 0, 1);
 		else if (Math.abs(hitPoint.x - minCorner.x) < eps) normal.set(-1, 0, 0);
@@ -678,7 +724,7 @@ function intersectUnitSphere(rayO, rayD, normal)
 	}
 
 	t = Infinity;
-	
+
 	if (t0 > 0)
 	{
 		normal.getPointAlongRay(rayO, rayD, t0);
@@ -790,7 +836,7 @@ function intersectParaboloid(heightRadius, position, rayO, rayD, normal)
 	{
 		return Infinity;
 	}
-	
+
 	hitPoint.getPointAlongRay(rayO, rayD, t0);
 	if (t0 > 0 && hitPoint.y < (position.y + heightRadius))
 	{
@@ -870,7 +916,7 @@ function intersectHyperbolicParaboloid(radius, position, rayO, rayD, normal)
 	{
 		return Infinity;
 	}
-	
+
 	hitPoint.getPointAlongRay(rayO, rayD, t0);
 	if (t0 > 0 && hitPoint.x < (position.x + radius) && hitPoint.x > (position.x - radius) &&
 		hitPoint.z < (position.z + radius) && hitPoint.z > (position.z - radius))
