@@ -722,9 +722,7 @@ function intersectUnitSphere(rayO, rayD, normal)
 	{
 		return Infinity;
 	}
-
-	t = Infinity;
-
+	
 	if (t0 > 0)
 	{
 		normal.getPointAlongRay(rayO, rayD, t0);
